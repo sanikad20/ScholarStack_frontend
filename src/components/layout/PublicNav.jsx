@@ -1,54 +1,98 @@
 import { Link } from "react-router-dom";
-import { Search, Bell, Heart, ChevronDown } from "lucide-react";
+import {
+  Search,
+  Bell,
+  Heart,
+  ChevronDown,
+  Menu,
+} from "lucide-react";
+
+import graduationCap from "../../assets/GraduationCap.png";
 
 export default function PublicNav() {
   return (
-    <div className="border-b border-black/5">
-      <div className="max-w-[1200px] mx-auto px-6">
-        <div className="flex items-center gap-6 py-4">
-          <Link to="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center">
-              <span className="text-white font-bold text-sm">S</span>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-black/5">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10">
+        <div className="h-20 flex items-center">
+
+          {/* Logo */}
+          <Link
+            to="/"
+            className="flex items-center gap-3 shrink-0"
+          >
+            <img
+              src={graduationCap}
+              alt="ScholarStack Logo"
+              className="h-10 w-auto object-contain"
+            />
+
+            <div className="flex flex-col leading-none">
+              <span className="text-xl font-bold text-navy">
+                ScholarStack
+              </span>
+
+              <span className="text-[10px] uppercase tracking-wider text-gray-500 mt-1">
+                Admission Platform
+              </span>
             </div>
-            <span className="font-bold text-[17px] text-navy">ScholarStack</span>
           </Link>
 
-          <button className="hidden md:flex items-center gap-1 text-sm text-navy/80 font-medium shrink-0">
+          {/* Browse */}
+          <button className="hidden lg:flex items-center gap-1 ml-8 text-sm font-medium text-navy hover:text-accent transition">
             Browse
-            <ChevronDown size={14} />
+            <ChevronDown size={15} />
           </button>
 
-          <div className="hidden md:flex flex-1 max-w-md items-center gap-2 bg-black/[0.03] border border-black/5 rounded-full px-4 py-2">
-            <Search size={15} className="text-navySoft" />
-            <input
-              type="text"
-              placeholder="Who do you want to hire..."
-              className="bg-transparent outline-none text-sm text-navy placeholder:text-navySoft w-full"
-            />
+          {/* Search */}
+          <div className="hidden md:flex flex-1 max-w-xl mx-8">
+            <div className="flex items-center w-full h-11 rounded-full border border-gray-200 bg-gray-50 px-5 transition focus-within:ring-2 focus-within:ring-accent/20">
+              <Search
+                size={17}
+                className="text-gray-400"
+              />
+
+              <input
+                type="text"
+                placeholder="Who do you want to hire..."
+                className="ml-3 w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-4 ml-auto">
-            <button className="hidden sm:flex text-navySoft hover:text-navy transition-colors" aria-label="Notifications">
-              <Bell size={18} />
+          {/* Right Side */}
+          <div className="ml-auto flex items-center gap-4">
+
+            <button className="hidden md:flex text-gray-500 hover:text-accent transition">
+              <Bell size={19} />
             </button>
-            <button className="hidden sm:flex text-navySoft hover:text-navy transition-colors" aria-label="Saved">
-              <Heart size={18} />
+
+            <button className="hidden md:flex text-gray-500 hover:text-accent transition">
+              <Heart size={19} />
             </button>
+
             <Link
               to="/register"
-              className="hidden sm:inline-flex text-sm font-semibold text-navy px-4 py-2 rounded-full border border-black/10 hover:bg-black/[0.03] transition-colors"
+              className="hidden sm:flex h-10 items-center justify-center rounded-full border border-gray-200 px-5 text-sm font-semibold hover:bg-gray-50 transition"
             >
               Create Account
             </Link>
+
             <Link
               to="/login"
-              className="inline-flex text-sm font-semibold text-white bg-accent hover:bg-accent-dark px-5 py-2 rounded-full transition-colors"
+              className="flex h-10 items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-white hover:bg-accent-dark transition"
             >
               Sign In
             </Link>
+
+            {/* Mobile Menu */}
+            <button className="lg:hidden">
+              <Menu size={22} />
+            </button>
+
           </div>
+
         </div>
       </div>
-    </div>
+    </header>
   );
 }
