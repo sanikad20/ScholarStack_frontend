@@ -2,24 +2,15 @@ import { Link } from "react-router-dom";
 import { Facebook, Instagram, Linkedin, Twitter, Youtube, ChevronDown } from "lucide-react";
 
 const COLUMNS = [
-  {
-    title: "Top 4 Category",
-    links: ["Development", "Finance & Accounting", "Design", "Business"],
-  },
-  {
-    title: "Quick Links",
-    links: ["About", "Become Institution", "Contact", "Career"],
-  },
-  {
-    title: "Support",
-    links: ["Help Center", "FAQs", "Terms & Condition", "Privacy Policy"],
-  },
+  { title: "Top 4 Category", links: ["Development", "Finance & Accounting", "Design", "Business"] },
+  { title: "Quick Links", links: ["About", "Become Institution", "Contact", "Career"] },
+  { title: "Support", links: ["Help Center", "FAQs", "Terms & Condition", "Privacy Policy"] },
 ];
 
 export default function Footer() {
   return (
     <div className="border-t border-black/5">
-      <div className="max-w-[1200px] mx-auto px-6 py-14">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-14">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-10">
           <div className="col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-3">

@@ -1,5 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import Landing from "./pages/public/Landing.jsx";
+import Login from "./pages/public/Login.jsx";
+import Register from "./pages/public/Register.jsx";
 
 function ComingSoon({ label }) {
   return (
@@ -13,11 +15,12 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<ComingSoon label="Login" />} />
-      <Route path="/register" element={<ComingSoon label="Register" />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/courses" element={<ComingSoon label="Browse Courses" />} />
       <Route path="/for-institutions" element={<ComingSoon label="For Institutions" />} />
       <Route path="/register-institution" element={<ComingSoon label="Register Institution" />} />
+      <Route path="/admin-login" element={<ComingSoon label="Admin Login" />} />
     </Routes>
   );
 }
