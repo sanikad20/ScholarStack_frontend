@@ -4,6 +4,8 @@ import Login from "./pages/public/Login.jsx";
 import Register from "./pages/public/Register.jsx";
 import Dashboard from "./pages/student/Dashboard.jsx";
 import BrowseCourses from "./pages/student/BrowseCourses.jsx";
+import CourseDetail from "./pages/student/CourseDetail.jsx";
+import ApplicationForm from "./pages/student/ApplicationForm.jsx";
 
 function ComingSoon({ label }) {
   return (
@@ -25,6 +27,8 @@ export default function App() {
       <Route path="/admin-login" element={<ComingSoon label="Admin Login" />} />
       <Route path="/student/dashboard" element={<Dashboard />} />
       <Route path="/student/courses" element={<BrowseCourses />} />
+      <Route path="/student/courses/:id" element={<CourseDetail />} />
+      <Route path="/student/apply/:id" element={<ApplicationForm />} />   
       <Route path="/student/applications" element={<ComingSoon label="My Applications" />} />
       <Route path="/student/profile" element={<ComingSoon label="Profile" />} />
     </Routes>

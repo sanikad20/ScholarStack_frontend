@@ -2,10 +2,10 @@ import { Link, useLocation } from "react-router-dom";
 import { Home, BookOpen, ClipboardList, User } from "lucide-react";
 
 const NAV_ITEMS = [
-  { label: "Home", to: "/student/dashboard", icon: Home },
-  { label: "Browse Course", to: "/student/courses", icon: BookOpen },
-  { label: "My Application", to: "/student/applications", icon: ClipboardList },
-  { label: "Profile", to: "/student/profile", icon: User },
+  { label: "Home", to: "/student/dashboard", match: "/student/dashboard", icon: Home },
+  { label: "Browse Course", to: "/student/courses", match: "/student/courses", icon: BookOpen },
+  { label: "My Application", to: "/student/applications", match: "/student/applications", icon: ClipboardList },
+  { label: "Profile", to: "/student/profile", match: "/student/profile", icon: User },
 ];
 
 export default function StudentSidebar() {
@@ -14,8 +14,8 @@ export default function StudentSidebar() {
   return (
     <aside className="w-56 shrink-0 border-r border-black/5 py-6">
       <nav className="flex flex-col gap-1 px-3">
-        {NAV_ITEMS.map(({ label, to, icon: Icon }) => {
-          const active = pathname === to;
+        {NAV_ITEMS.map(({ label, to, match, icon: Icon }) => {
+          const active = pathname.startsWith(match);
           return (
             <Link
               key={to}
