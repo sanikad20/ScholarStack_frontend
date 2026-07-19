@@ -6,6 +6,9 @@ import Dashboard from "./pages/student/Dashboard.jsx";
 import BrowseCourses from "./pages/student/BrowseCourses.jsx";
 import CourseDetail from "./pages/student/CourseDetail.jsx";
 import ApplicationForm from "./pages/student/ApplicationForm.jsx";
+import MyApplications from "./pages/student/MyApplications.jsx";
+import Profile from "./pages/student/Profile.jsx";
+import DocumentUpload from "./pages/student/DocumentUpload.jsx";
 
 function ComingSoon({ label }) {
   return (
@@ -28,9 +31,10 @@ export default function App() {
       <Route path="/student/dashboard" element={<Dashboard />} />
       <Route path="/student/courses" element={<BrowseCourses />} />
       <Route path="/student/courses/:id" element={<CourseDetail />} />
-      <Route path="/student/apply/:id" element={<ApplicationForm />} />   
-      <Route path="/student/applications" element={<ComingSoon label="My Applications" />} />
-      <Route path="/student/profile" element={<ComingSoon label="Profile" />} />
+      <Route path="/student/apply/:id" element={<ApplicationForm />} />
+      <Route path="/student/applications" element={<MyApplications />} />
+      <Route path="/student/profile" element={<Profile />} />
+      <Route path="/student/documents" element={<DocumentUpload />} />
     </Routes>
   );
 }
