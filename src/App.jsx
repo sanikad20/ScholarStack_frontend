@@ -10,7 +10,7 @@ import MyApplications from "./pages/student/MyApplications.jsx";
 import Profile from "./pages/student/Profile.jsx";
 import DocumentUpload from "./pages/student/DocumentUpload.jsx";
 
-// Import Admin Onboarding pages
+// Import Admin Onboarding pages(updated)
 import ForInstitutions from "./pages/public/ForInstitutions.jsx";
 import RegisterInstitution from "./pages/public/RegisterInstitution.jsx";
 import AdminLogin from "./pages/public/AdminLogin.jsx";
