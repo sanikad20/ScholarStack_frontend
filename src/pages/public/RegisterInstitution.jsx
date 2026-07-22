@@ -10,18 +10,15 @@ export default function RegisterInstitution() {
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const [form, setForm] = useState({
     institutionName: "",
     subdomain: "",
     admissionSession: "",
     address: "",
-    firstName: "",
-    lastName: "",
+    fullName: "",
     email: "",
     password: "",
-    confirmPassword: "",
     agree: false,
   });
 
@@ -40,11 +37,6 @@ export default function RegisterInstitution() {
     e.preventDefault();
     setError("");
 
-    if (form.password !== form.confirmPassword) {
-      setError("Admin passwords do not match.");
-      return;
-    }
-
     if (!form.agree) {
       setError("Please agree to the Terms & Conditions to register.");
       return;
@@ -58,7 +50,7 @@ export default function RegisterInstitution() {
         subdomain: form.subdomain.toLowerCase().trim(),
         admissionSession: form.admissionSession,
         address: form.address,
-        name: `${form.firstName} ${form.lastName}`.trim(),
+        name: form.fullName.trim(),
         email: form.email,
         password: form.password,
       });
@@ -70,7 +62,7 @@ export default function RegisterInstitution() {
           "Could not register your institution. Check field values or subdomain availability."
       );
     } finally {
-      setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+      setForm((prev) => ({ ...prev, password: "" }));
       setLoading(false);
     }
   };
@@ -116,29 +108,29 @@ export default function RegisterInstitution() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {/* SECTION 1: INSTITUTION DETAILS */}
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-navySoft mb-4 pb-1 border-b border-gray-100">
+                <span className="block font-mono text-[13px] text-gray-400 mb-4 tracking-wide">
                   Institution details
-                </h2>
+                </span>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Institution name</label>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Institution name</label>
                     <input
                       type="text"
                       name="institutionName"
                       value={form.institutionName}
                       onChange={handleChange}
                       placeholder="eg. IIT Bombay"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Subdomain</label>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Subdomain</label>
                     <div className="relative flex items-center">
                       <input
                         type="text"
@@ -146,7 +138,7 @@ export default function RegisterInstitution() {
                         value={form.subdomain}
                         onChange={handleChange}
                         placeholder="eg. IIT Bombay"
-                        className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-28 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
+                        className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-28 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
                         required
                       />
                       <span className="absolute right-4 text-xs font-semibold text-navySoft bg-white/80 px-1 py-0.5 rounded">
@@ -155,126 +147,90 @@ export default function RegisterInstitution() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Admission session</label>
-                      <input
-                        type="text"
-                        name="admissionSession"
-                        value={form.admissionSession}
-                        onChange={handleChange}
-                        placeholder="2023-2027"
-                        className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Address</label>
-                      <input
-                        type="text"
-                        name="address"
-                        value={form.address}
-                        onChange={handleChange}
-                        placeholder="City, State, Country"
-                        className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Admission session</label>
+                    <input
+                      type="text"
+                      name="admissionSession"
+                      value={form.admissionSession}
+                      onChange={handleChange}
+                      placeholder="2023-2027"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Address</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={form.address}
+                      onChange={handleChange}
+                      placeholder="City, State, Country"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
+                      required
+                    />
                   </div>
                 </div>
               </div>
 
+              {/* PURPLE DIVIDER */}
+              <div className="h-[1px] bg-purple-200/50 my-6" />
+
               {/* SECTION 2: ADMIN DETAILS */}
-              <div className="pt-4">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-navySoft mb-4 pb-1 border-b border-gray-100">
+              <div>
+                <span className="block font-mono text-[13px] text-gray-400 mb-4 tracking-wide">
                   Admin details
-                </h2>
+                </span>
 
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Full Name</label>
-                      <input
-                        type="text"
-                        name="firstName"
-                        value={form.firstName}
-                        onChange={handleChange}
-                        placeholder="First name..."
-                        className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">&nbsp;</label>
-                      <input
-                        type="text"
-                        name="lastName"
-                        value={form.lastName}
-                        onChange={handleChange}
-                        placeholder="Last name..."
-                        className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
-                        required
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={form.fullName}
+                      onChange={handleChange}
+                      placeholder="First name..."
+                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
+                      required
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Email</label>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Email</label>
                     <input
                       type="email"
                       name="email"
                       value={form.email}
                       onChange={handleChange}
                       placeholder="Email address"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
+                      className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
                       required
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Password</label>
-                      <div className="relative">
-                        <input
-                          type={showPassword ? "text" : "password"}
-                          name="password"
-                          value={form.password}
-                          onChange={handleChange}
-                          placeholder="Create password"
-                          className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-10 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-navySoft hover:text-navy transition"
-                        >
-                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Confirm Password</label>
-                      <div className="relative">
-                        <input
-                          type={showConfirm ? "text" : "password"}
-                          name="confirmPassword"
-                          value={form.confirmPassword}
-                          onChange={handleChange}
-                          placeholder="Confirm password"
-                          className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-10 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
-                          required
-                          minLength={6}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirm(!showConfirm)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-navySoft hover:text-navy transition"
-                        >
-                          {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium text-navy/80 mb-1.5">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={form.password}
+                        onChange={handleChange}
+                        placeholder="Create password"
+                        className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-10 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-navySoft hover:text-navy transition"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
                   </div>
                 </div>
