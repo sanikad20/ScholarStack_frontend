@@ -23,9 +23,19 @@ export default function FormBuilder() {
     { label: "Dropdown", value: "dropdown" },
     { label: "Radio", value: "radio" },
     { label: "Check box", value: "checkbox" },
+    { label: "File upload", value: "file" }
   ];
 
-  // Fetch all courses
+  const TYPE_LABELS = {
+    text: "TEXT",
+    number: "NUMBER",
+    date: "DATE",
+    dropdown: "DROPDOWN",
+    radio: "RADIO",
+    checkbox: "CHECK BOX",
+    file: "FILE UPLOAD"
+  };
+
   useEffect(() => {
     api
       .get("/courses")
@@ -42,7 +52,6 @@ export default function FormBuilder() {
       });
   }, []);
 
-  // Fetch form template when course changes
   const fetchTemplate = async (courseId) => {
     if (!courseId) return;
     setLoading(true);
@@ -62,7 +71,6 @@ export default function FormBuilder() {
       }
     } catch (err) {
       setTemplate(null);
-      // Default fallback template fields if none exist
       const defaultFields = [
         { label: "Full name", fieldKey: "full_name", type: "text", required: true, order: 0 },
         { label: "Date of birth", fieldKey: "date_of_birth", type: "date", required: true, order: 1 },
@@ -171,7 +179,7 @@ export default function FormBuilder() {
               <button
                 onClick={() => fetchTemplate(selectedCourseId)}
                 disabled={loading}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition"
+                className="inline-flex items-center gap-2.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition"
               >
                 <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 Refresh
@@ -220,7 +228,7 @@ export default function FormBuilder() {
               <div className="space-y-4">
                 {fields.map((field, idx) => {
                   const isActive = selectedIndex === idx;
-                  const typeLabel = field.type.toUpperCase();
+                  const typeLabel = TYPE_LABELS[field.type] || field.type.toUpperCase();
                   const reqText = field.required ? "REQUIRED" : "OPTIONAL";
                   const optionsCount = field.options && field.options.length > 0 
                     ? `${field.options.length} OPTIONS` 
@@ -239,7 +247,6 @@ export default function FormBuilder() {
                       }`}
                     >
                       <div className="flex items-center gap-4">
-                        {/* Orange document icon container */}
                         <div className="w-10 h-10 rounded-lg bg-[#FF5A3C]/10 flex items-center justify-center text-accent shrink-0">
                           <FileText size={18} />
                         </div>
@@ -270,7 +277,6 @@ export default function FormBuilder() {
                   );
                 })}
 
-                {/* ADD FIELD DOTTED BOX */}
                 <button
                   type="button"
                   onClick={handleAddField}
@@ -283,7 +289,6 @@ export default function FormBuilder() {
               {/* RIGHT COLUMN: CONFIGURATION PANEL */}
               <div className="border border-gray-200 rounded-2xl p-8 bg-white h-fit shadow-sm">
                 
-                {/* FIELD TYPE SELECTOR */}
                 <div>
                   <h3 className="text-lg font-bold text-navy mb-4">Field type</h3>
                   <div className="grid grid-cols-2 gap-4">
@@ -310,7 +315,6 @@ export default function FormBuilder() {
 
                 <div className="h-[1px] bg-gray-100 my-8" />
 
-                {/* FIELD SETTINGS */}
                 <div>
                   <h3 className="text-lg font-bold text-navy mb-4">Field settings</h3>
                   
