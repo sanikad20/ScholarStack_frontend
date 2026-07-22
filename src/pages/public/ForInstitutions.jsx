@@ -137,26 +137,26 @@ export default function ForInstitutions() {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
-              {FEATURES.map(({ icon: Icon, title, description }, index) => (
+           
+            <div className="flex flex-col gap-6">
+              {FEATURES.map(({ icon: Icon, title, description }) => (
                 <div
                   key={title}
-                  className="flex items-start gap-5 p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition duration-200"
+                  className="flex items-start gap-5 p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition duration-200 bg-white"
                 >
-                  {/* Purple number box like Figma */}
-                  <div className="w-12 h-12 rounded-xl bg-[#6C63D6]/10 flex items-center justify-center shrink-0">
-                    <span className="text-[#6C63D6] font-bold text-lg">{index + 1}</span>
+                  {/* Purple solid number box like Figma */}
+                  <div className="w-10 h-10 rounded-lg bg-[#5C55EC] flex items-center justify-center shrink-0 text-white font-bold text-base font-sans">
+                    1
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-navy mb-2">{title}</h3>
+                    <h3 className="text-lg font-bold text-navy mb-1.5">{title}</h3>
                     <p className="text-sm leading-relaxed text-gray-500">{description}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </section>
-
+         </section>
        
         <section className="bg-[#171823] py-20 text-white">
           <div className={WRAP}>
