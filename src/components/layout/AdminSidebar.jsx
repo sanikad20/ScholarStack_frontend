@@ -1,19 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, ClipboardList, Settings2, Bell, LogOut } from "lucide-react";
+import { BookOpen, Settings2, ClipboardList, Bell, LogOut } from "lucide-react";
 
 const NAV_ITEMS = [
-  {
-    label: "Dashboard",
-    to: "/admin/dashboard",
-    match: "/admin/dashboard",
-    icon: Home,
-  },
-  {
-    label: "Applications",
-    to: "/admin/applications",
-    match: "/admin/applications",
-    icon: ClipboardList,
-  },
   {
     label: "Courses",
     to: "/admin/courses",
@@ -25,6 +13,12 @@ const NAV_ITEMS = [
     to: "/admin/form-builder",
     match: "/admin/form-builder",
     icon: Settings2,
+  },
+  {
+    label: "Applications",
+    to: "/admin/applications",
+    match: "/admin/applications",
+    icon: ClipboardList,
   },
   {
     label: "Notifications",
