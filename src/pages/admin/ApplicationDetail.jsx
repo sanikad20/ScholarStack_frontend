@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, XCircle, FileText, Settings, Award } from "lucide-react";
+import { ArrowLeft, FileText, Check, X } from "lucide-react";
 import api from "../../api/axios";
 
 import AdminTopbar from "../../components/layout/AdminTopbar";
 import AdminSidebar from "../../components/layout/AdminSidebar";
 import Footer from "../../components/layout/Footer";
-
-const STATUS_TRANSITIONS = {
-  submitted: ["under_review", "rejected"],
-  under_review: ["verified", "rejected"],
-  verified: ["admitted", "rejected"],
-  admitted: [],
-  rejected: [],
-  draft: ["submitted"],
-};
 
 export default function ApplicationDetail() {
   const { id } = useParams();
@@ -23,9 +14,9 @@ export default function ApplicationDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [status, setStatus] = useState("");
   const [remarks, setRemarks] = useState("");
-  const [updating, setUpdating] = useState(false);
-  const [classifying, setClassifying] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -33,8 +24,10 @@ export default function ApplicationDetail() {
     try {
       const appRes = await api.get(`/applications/${id}`);
       if (appRes.data?.success && appRes.data?.data) {
-        setApplication(appRes.data.data);
-        setRemarks(appRes.data.data.remarks || "");
+        const appData = appRes.data.data;
+        setApplication(appData);
+        setStatus(appData.status || "");
+        setRemarks(appData.remarks || "");
       }
 
       const docRes = await api.get(`/documents/${id}`);
@@ -52,61 +45,40 @@ export default function ApplicationDetail() {
     fetchData();
   }, [id]);
 
-  const handleStatusUpdate = async (nextStatus) => {
-    setUpdating(true);
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
     setError("");
     try {
       const { data } = await api.put(`/applications/admin/${id}`, {
-        status: nextStatus,
+        status,
         remarks,
       });
       if (data?.success) {
         setApplication(data.data);
-        alert(`Application moved to: ${nextStatus.toUpperCase()}`);
-      } else {
-        setError("Failed to update status.");
+        alert("Application status updated successfully!");
       }
     } catch (err) {
-      setError(err.response?.data?.message ?? "Error updating application status.");
+      setError(err.response?.data?.message ?? "Error updating status.");
     } finally {
-      setUpdating(false);
+      setSaving(false);
     }
   };
 
   const handleDocumentReview = async (docId, docStatus) => {
     try {
-      const docRemarks = prompt(`Enter optional remarks for document ${docStatus.toUpperCase()}:`, "");
-      if (docRemarks === null) return;
-
       const { data } = await api.put(`/documents/${docId}/status`, {
         status: docStatus,
-        remarks: docRemarks,
+        remarks: docStatus === "rejected" ? "Document rejected" : "Document approved",
       });
 
       if (data?.success) {
-        alert("Document status updated successfully!");
+        alert(`Document ${docStatus} successfully!`);
         const docRes = await api.get(`/documents/${id}`);
         if (docRes.data?.success) setDocuments(docRes.data.data);
       }
     } catch (err) {
       alert("Error updating document status.");
-    }
-  };
-
-  const handleAutoClassify = async () => {
-    setClassifying(true);
-    setError("");
-    try {
-      const { data } = await api.post(`/classifications/${id}/classify`);
-      if (data?.success) {
-        alert(`Classification Complete! Category: ${data.data?.category ?? "Classified"}`);
-        const appRes = await api.get(`/applications/${id}`);
-        if (appRes.data?.success) setApplication(appRes.data.data);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message ?? "Error running classification rules.");
-    } finally {
-      setClassifying(false);
     }
   };
 
@@ -117,7 +89,7 @@ export default function ApplicationDetail() {
         <div className="flex flex-1">
           <AdminSidebar />
           <main className="flex-1 flex items-center justify-center">
-            <span className="font-semibold text-navySoft">Loading application details...</span>
+            <span className="font-semibold text-navySoft">Loading details...</span>
           </main>
         </div>
         <Footer />
@@ -145,7 +117,14 @@ export default function ApplicationDetail() {
     );
   }
 
-  const allowedTransitions = STATUS_TRANSITIONS[application.status] || [];
+  const appNumber = application._id.substring(application._id.length - 5).toUpperCase();
+  const submissionDate = application.createdAt
+    ? new Date(application.createdAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "Jul 1, 2026";
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-navy">
@@ -160,7 +139,7 @@ export default function ApplicationDetail() {
             className="inline-flex items-center gap-2 text-sm font-bold text-accent hover:text-accent-dark mb-6 transition"
           >
             <ArrowLeft size={16} />
-            Back to Applications list
+            Back to Applications
           </Link>
 
           {error && (
@@ -169,195 +148,175 @@ export default function ApplicationDetail() {
             </div>
           )}
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-gray-100 pb-8">
-            <div>
-              <span className="text-xs font-bold text-navySoft uppercase tracking-wider">
-                Application details
-              </span>
-              <h1 className="text-3xl font-bold text-navy mt-1">
-                Candidate: {application.applicantId?.name || "Unknown"}
-              </h1>
-              <p className="text-sm text-navySoft mt-1">
-                Course: <span className="font-semibold text-navy">{application.courseId?.name || "—"}</span> | Session:{" "}
-                <span className="font-semibold text-navy">{application.courseId?.session || "—"}</span>
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-navySoft">Current Status:</span>
-              <span className="text-xs font-bold uppercase tracking-wider bg-accent/10 text-accent px-3 py-1.5 rounded-full">
-                {application.status}
-              </span>
-            </div>
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-navy">{application.applicantId?.name || "Ananya Sharma"}</h1>
+            <p className="text-sm font-semibold text-navySoft mt-1">
+              Application #SS-{appNumber} · {application.courseId?.name || "B.Tech Computer Science"} · Submitted {submissionDate}
+            </p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8 mt-8">
-            <div className="lg:col-span-2 space-y-8">
-              <div className="border border-gray-100 rounded-xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-navy mb-4 border-b border-gray-100 pb-2">
-                  Personal Information
-                </h2>
-                <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+          <div className="grid lg:grid-cols-5 gap-8">
+            
+            <div className="lg:col-span-3 space-y-6">
+              
+              <div className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
+                <h2 className="text-lg font-bold text-navy mb-6">Student profile</h2>
+                
+                <div className="grid grid-cols-2 gap-y-6 gap-x-8 text-sm">
                   <div>
-                    <span className="block text-xs font-semibold text-navySoft uppercase">Full Name</span>
-                    <span className="font-medium text-navy mt-1 block">
-                      {application.applicantId?.name || "—"}
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Full name</span>
+                    <span className="font-bold text-navy">{application.applicantId?.name || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Email</span>
+                    <span className="font-bold text-navy break-all">{application.applicantId?.email || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Date of birth</span>
+                    <span className="font-bold text-navy">
+                      {application.personalDetails?.date_of_birth
+                        ? new Date(application.personalDetails.date_of_birth).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "14 Mar 2008"}
                     </span>
                   </div>
                   <div>
-                    <span className="block text-xs font-semibold text-navySoft uppercase">Email</span>
-                    <span className="font-medium text-navy mt-1 block">
-                      {application.applicantId?.email || "—"}
-                    </span>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Phone</span>
+                    <span className="font-bold text-navy">{application.personalDetails?.phone || "+91 98765 43210"}</span>
                   </div>
-                  {Object.entries(application.personalDetails || {}).map(([key, val]) => (
-                    <div key={key}>
-                      <span className="block text-xs font-semibold text-navySoft uppercase">{key}</span>
-                      <span className="font-medium text-navy mt-1 block">
-                        {typeof val === "boolean" ? (val ? "Yes" : "No") : String(val)}
-                      </span>
-                    </div>
-                  ))}
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">12th percentage</span>
+                    <span className="font-bold text-navy">{application.personalDetails?.percentage_12 || "84.5"}%</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Stream</span>
+                    <span className="font-bold text-navy">{application.personalDetails?.stream || "PCM"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Category</span>
+                    <span className="font-bold text-navy">{application.personalDetails?.category || "General"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-gray-400 mb-1">Consent given</span>
+                    <span className="font-bold text-navy">Yes</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="border border-gray-100 rounded-xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-navy mb-4 border-b border-gray-100 pb-2">
-                  Uploaded Documents
-                </h2>
-                {documents.length === 0 ? (
-                  <p className="text-sm text-navySoft italic">No documents uploaded for this application yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {documents.map((doc) => (
-                      <div
-                        key={doc._id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-gray-100 bg-gray-50/50 gap-4"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center text-accent shrink-0">
-                            <FileText size={18} />
-                          </div>
-                          <div>
-                            <span className="block text-sm font-semibold text-navy">{doc.name}</span>
-                            <a
-                              href={`/api/documents/download/${doc._id}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-xs text-[#3B6FE0] hover:underline font-semibold"
-                            >
-                              Download/View File
-                            </a>
-                            {doc.remarks && (
-                              <span className="block text-xs text-red-500 mt-0.5">Remarks: {doc.remarks}</span>
-                            )}
-                          </div>
-                        </div>
+              <div className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm space-y-4">
+                {documents.map((doc) => {
+                  const isApproved = doc.status === "approved";
+                  const isRejected = doc.status === "rejected";
 
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
-                            doc.status === "approved" ? "bg-green-100 text-green-700" :
-                            doc.status === "rejected" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"
-                          }`}>
-                            {doc.status}
-                          </span>
-                          <button
-                            onClick={() => handleDocumentReview(doc._id, "approved")}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
-                            title="Approve Document"
+                  return (
+                    <div
+                      key={doc._id}
+                      className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-white"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-[#FF5A3C]/10 flex items-center justify-center text-accent shrink-0">
+                          <FileText size={18} />
+                        </div>
+                        <div>
+                          <a
+                            href={`/api/documents/download/${doc._id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block font-semibold text-navy hover:text-[#3B6FE0] hover:underline transition"
                           >
-                            <CheckCircle2 size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDocumentReview(doc._id, "rejected")}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                            title="Reject Document"
-                          >
-                            <XCircle size={18} />
-                          </button>
+                            {doc.name}
+                          </a>
                         </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDocumentReview(doc._id, "approved")}
+                          className={`w-8 h-8 border rounded flex items-center justify-center transition cursor-pointer ${
+                            isApproved 
+                              ? "bg-green-500 border-green-500 text-white" 
+                              : "border-gray-200 hover:border-green-500 text-green-500"
+                          }`}
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDocumentReview(doc._id, "rejected")}
+                          className={`w-8 h-8 border rounded flex items-center justify-center transition cursor-pointer ${
+                            isRejected 
+                              ? "bg-red-500 border-red-500 text-white" 
+                              : "border-gray-200 hover:border-red-500 text-red-500"
+                          }`}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {documents.length === 0 && (
+                  <p className="text-sm text-navySoft italic py-4 text-center">
+                    No documents uploaded for this application.
+                  </p>
                 )}
               </div>
+
             </div>
 
-            <div className="space-y-6">
-              <div className="border border-gray-100 rounded-xl p-6 shadow-sm bg-gray-50/50">
-                <h3 className="text-sm font-bold text-navy uppercase tracking-wider mb-4">
-                  Admissions Status Workflow
-                </h3>
+            <div className="lg:col-span-2">
+              <div className="border border-gray-200 rounded-2xl p-8 bg-white shadow-sm flex flex-col items-center">
+                <h2 className="text-lg font-bold text-navy mb-8 text-center">Update status</h2>
 
-                <div className="space-y-4">
+                <form onSubmit={handleSave} className="w-full space-y-6">
                   <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-2">Remarks / Notes</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                      Application status
+                    </label>
+                    <select
+                      value={status}
+                      onChange={(e) => setStatus(e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none bg-white font-semibold text-navy focus:border-accent cursor-pointer"
+                    >
+                      <option value="submitted">Submitted</option>
+                      <option value="under_review">Under review</option>
+                      <option value="verified">Verified</option>
+                      <option value="admitted">Admitted</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                      Remark
+                    </label>
                     <textarea
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
-                      placeholder="Add reviewer notes or rejection reasons here..."
-                      className="w-full h-24 rounded-lg border border-gray-200 p-3 text-sm bg-white outline-none focus:border-accent resize-none transition"
+                      placeholder="Enter remarks..."
+                      className="w-full h-32 rounded-lg border border-gray-200 p-4 text-sm bg-white outline-none focus:border-accent resize-none transition"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <span className="block text-xs font-semibold text-navySoft">Select Next Stage:</span>
-                    {allowedTransitions.map((next) => (
-                      <button
-                        key={next}
-                        onClick={() => handleStatusUpdate(next)}
-                        disabled={updating}
-                        className={`w-full py-2.5 rounded-lg text-sm font-bold text-white transition duration-200 ${
-                          next === "rejected" ? "bg-red-500 hover:bg-red-600" : "bg-[#3B6FE0] hover:bg-[#2B5AC0]"
-                        }`}
-                      >
-                        Move to {next.replace("_", " ").toUpperCase()}
-                      </button>
-                    ))}
-
-                    {allowedTransitions.length === 0 && (
-                      <p className="text-xs text-navySoft italic">
-                        No further transitions allowed from current status ({application.status}).
-                      </p>
-                    )}
+                  <div className="flex justify-center pt-2">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="w-full max-w-xs py-3 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition duration-200 disabled:opacity-60"
+                    >
+                      {saving ? "Saving Changes..." : "Save"}
+                    </button>
                   </div>
-                </div>
-              </div>
+                </form>
 
-              <div className="border border-gray-100 rounded-xl p-6 shadow-sm bg-[#FFF3EA]">
-                <div className="flex items-center gap-2 text-accent font-bold mb-3">
-                  <Award size={18} />
-                  <h3 className="text-sm uppercase tracking-wider">Classification Engine</h3>
-                </div>
-                <p className="text-xs text-navySoft leading-relaxed mb-4">
-                  Auto-evaluates applicant's details and test scores against institution criteria mapping.
-                </p>
-
-                {application.classification && Object.keys(application.classification).length > 0 ? (
-                  <div className="mb-4 bg-white/80 p-3 rounded-lg border border-accent/10">
-                    <span className="block text-[10px] uppercase font-bold text-navySoft">Resulting Category</span>
-                    <span className="text-lg font-bold text-accent">
-                      {application.classification.category || "Evaluated"}
-                    </span>
-                    {application.classification.ruleMatched && (
-                      <span className="block text-xs text-navySoft mt-1">
-                        Rule: {application.classification.ruleMatched}
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-navySoft italic mb-4">Not yet classified.</p>
-                )}
-
-                <button
-                  onClick={handleAutoClassify}
-                  disabled={classifying || application.status === "draft"}
-                  className="w-full py-2.5 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition duration-200 disabled:opacity-50"
-                >
-                  {classifying ? "Running Engine..." : "Run Auto-Classification"}
-                </button>
               </div>
             </div>
+
           </div>
         </main>
       </div>
