@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Trash, Save, Layout, RefreshCw, ChevronDown, CheckSquare, Square } from "lucide-react";
+import { Plus, Trash, Edit2, FileText, Save, RefreshCw } from "lucide-react";
 import api from "../../api/axios";
 
 import AdminTopbar from "../../components/layout/AdminTopbar";
@@ -11,17 +11,21 @@ export default function FormBuilder() {
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [template, setTemplate] = useState(null);
   const [fields, setFields] = useState([]);
+  const [selectedIndex, setSelectedIndex] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const [newField, setNewField] = useState({
-    label: "",
-    type: "text",
-    required: false,
-    optionsString: "",
-  });
+  const FIELD_TYPES = [
+    { label: "Text", value: "text" },
+    { label: "Number", value: "number" },
+    { label: "Date", value: "date" },
+    { label: "Dropdown", value: "dropdown" },
+    { label: "Radio", value: "radio" },
+    { label: "Check box", value: "checkbox" },
+  ];
 
+  // Fetch all courses
   useEffect(() => {
     api
       .get("/courses")
@@ -34,30 +38,39 @@ export default function FormBuilder() {
         }
       })
       .catch(() => {
-        setError("Could not load courses to configure form templates.");
+        setError("Could not load courses for form templates.");
       });
   }, []);
 
+  // Fetch form template when course changes
   const fetchTemplate = async (courseId) => {
     if (!courseId) return;
     setLoading(true);
     setError("");
     setTemplate(null);
     setFields([]);
+    setSelectedIndex(null);
     try {
       const { data } = await api.get(`/forms/course/${courseId}`);
       if (data?.success && data?.data) {
         setTemplate(data.data);
-        setFields(data.data.fields || []);
+        const fetchedFields = data.data.fields || [];
+        setFields(fetchedFields);
+        if (fetchedFields.length > 0) {
+          setSelectedIndex(0);
+        }
       }
     } catch (err) {
       setTemplate(null);
-      setFields([
-        { label: "Date of Birth", fieldKey: "date_of_birth", type: "date", required: true, order: 0 },
-        { label: "Gender", fieldKey: "gender", type: "dropdown", required: true, options: ["Male", "Female", "Other"], order: 1 },
-        { label: "10th Percentage", fieldKey: "percentage_10", type: "number", required: true, order: 2 },
-        { label: "12th Percentage", fieldKey: "percentage_12", type: "number", required: true, order: 3 },
-      ]);
+      // Default fallback template fields if none exist
+      const defaultFields = [
+        { label: "Full name", fieldKey: "full_name", type: "text", required: true, order: 0 },
+        { label: "Date of birth", fieldKey: "date_of_birth", type: "date", required: true, order: 1 },
+        { label: "Stream", fieldKey: "stream", type: "dropdown", required: true, options: ["Science", "Commerce", "Arts"], order: 2 },
+        { label: "12th marksheet", fieldKey: "marksheet_12", type: "file", required: true, order: 3 },
+      ];
+      setFields(defaultFields);
+      setSelectedIndex(0);
     } finally {
       setLoading(false);
     }
@@ -67,40 +80,52 @@ export default function FormBuilder() {
     fetchTemplate(selectedCourseId);
   }, [selectedCourseId]);
 
-  const handleAddField = (e) => {
-    e.preventDefault();
-    if (!newField.label) return;
-
-    const fieldKey = newField.label
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_]/g, "_")
-      .replace(/_+/g, "_");
-
-    const options = newField.optionsString
-      ? newField.optionsString.split(",").map((o) => o.trim()).filter(Boolean)
-      : [];
-
-    const field = {
-      label: newField.label,
-      fieldKey,
-      type: newField.type,
-      required: newField.required,
-      options,
+  const handleAddField = () => {
+    const newField = {
+      label: "New Field",
+      fieldKey: `new_field_${fields.length}`,
+      type: "text",
+      required: false,
+      options: [],
       order: fields.length,
     };
-
-    setFields((prev) => [...prev, field]);
-    setNewField({ label: "", type: "text", required: false, optionsString: "" });
+    setFields((prev) => [...prev, newField]);
+    setSelectedIndex(fields.length);
   };
 
-  const handleRemoveField = (index) => {
+  const handleRemoveField = (index, e) => {
+    e.stopPropagation();
     setFields((prev) => prev.filter((_, i) => i !== index));
+    if (selectedIndex === index) {
+      setSelectedIndex(null);
+    } else if (selectedIndex > index) {
+      setSelectedIndex((prev) => prev - 1);
+    }
+  };
+
+  const handleFieldChange = (key, value) => {
+    if (selectedIndex === null) return;
+    setFields((prev) =>
+      prev.map((f, i) => {
+        if (i === selectedIndex) {
+          const updated = { ...f, [key]: value };
+          if (key === "label") {
+            updated.fieldKey = value
+              .toLowerCase()
+              .trim()
+              .replace(/[^a-z0-9_]/g, "_")
+              .replace(/_+/g, "_");
+          }
+          return updated;
+        }
+        return f;
+      })
+    );
   };
 
   const handleSaveTemplate = async () => {
     if (fields.length === 0) {
-      alert("At least one custom field is required in the template.");
+      alert("At least one field is required in the template.");
       return;
     }
 
@@ -127,6 +152,8 @@ export default function FormBuilder() {
     }
   };
 
+  const activeField = selectedIndex !== null ? fields[selectedIndex] : null;
+
   return (
     <div className="min-h-screen flex flex-col bg-white text-navy">
       <AdminTopbar />
@@ -137,17 +164,27 @@ export default function FormBuilder() {
         <main className="flex-1 px-8 py-10">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-navy">Admission Form Builder</h1>
-              <p className="mt-1 text-navySoft">Design custom application forms and required fields per course</p>
+              <h1 className="text-3xl font-bold text-navy">Form Builder</h1>
+              <p className="mt-1 text-navySoft">Design custom application forms and requirements per course</p>
             </div>
-            <button
-              onClick={handleSaveTemplate}
-              disabled={saving || loading || !selectedCourseId}
-              className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-5 py-2 text-sm font-semibold hover:bg-accent-dark transition disabled:opacity-50"
-            >
-              <Save size={16} />
-              {saving ? "Saving Template..." : "Save Template"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => fetchTemplate(selectedCourseId)}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition"
+              >
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                Refresh
+              </button>
+              <button
+                onClick={handleSaveTemplate}
+                disabled={saving || loading || !selectedCourseId}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-5 py-2.5 text-sm font-bold hover:bg-accent-dark transition disabled:opacity-50"
+              >
+                <Save size={16} />
+                {saving ? "Saving..." : "Save Config"}
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -156,6 +193,7 @@ export default function FormBuilder() {
             </div>
           )}
 
+          {/* COURSE SELECTOR */}
           <div className="mt-8 flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
             <span className="text-sm font-semibold text-navySoft shrink-0">Select Course:</span>
             <div className="relative flex-1 max-w-sm">
@@ -174,130 +212,159 @@ export default function FormBuilder() {
           </div>
 
           {loading ? (
-            <div className="py-24 text-center text-navySoft font-semibold">Loading template details...</div>
+            <div className="py-24 text-center text-navySoft font-semibold">Loading form builder...</div>
           ) : (
-            <div className="grid lg:grid-cols-3 gap-8 mt-8">
-              <div className="border border-gray-200 rounded-xl p-6 bg-gray-50/50 shadow-sm h-fit">
-                <div className="flex items-center gap-2 text-accent font-bold mb-4">
-                  <Layout size={18} />
-                  <h3 className="text-sm uppercase tracking-wider">Add Field Element</h3>
-                </div>
+            <div className="grid lg:grid-cols-2 gap-10 mt-8">
+              
+              {/* LEFT COLUMN: FIELD LISTINGS */}
+              <div className="space-y-4">
+                {fields.map((field, idx) => {
+                  const isActive = selectedIndex === idx;
+                  const typeLabel = field.type.toUpperCase();
+                  const reqText = field.required ? "REQUIRED" : "OPTIONAL";
+                  const optionsCount = field.options && field.options.length > 0 
+                    ? `${field.options.length} OPTIONS` 
+                    : null;
+                  
+                  const subLabel = [typeLabel, optionsCount, reqText].filter(Boolean).join(" - ");
 
-                <form onSubmit={handleAddField} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Field Label</label>
-                    <input
-                      type="text"
-                      value={newField.label}
-                      onChange={(e) => setNewField((prev) => ({ ...prev, label: e.target.value }))}
-                      placeholder="eg. Aggregate 12th Marks"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none bg-white focus:border-accent"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">Field Type</label>
-                    <select
-                      value={newField.type}
-                      onChange={(e) => setNewField((prev) => ({ ...prev, type: e.target.value }))}
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none bg-white focus:border-accent cursor-pointer font-semibold text-navySoft"
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setSelectedIndex(idx)}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition duration-200 cursor-pointer select-none ${
+                        isActive
+                          ? "border-accent ring-2 ring-accent/10 bg-accent/5"
+                          : "border-gray-100 hover:border-gray-200 bg-white"
+                      }`}
                     >
-                      <option value="text">Text Input</option>
-                      <option value="number">Number</option>
-                      <option value="date">Date Picker</option>
-                      <option value="dropdown">Dropdown Select</option>
-                      <option value="radio">Radio Option Group</option>
-                      <option value="checkbox">Checkbox Option Group</option>
-                      <option value="file">File Attachment</option>
-                    </select>
-                  </div>
-
-                  {["dropdown", "radio", "checkbox"].includes(newField.type) && (
-                    <div>
-                      <label className="block text-xs font-semibold text-navySoft mb-1.5 uppercase">
-                        Options (Comma-separated)
-                      </label>
-                      <input
-                        type="text"
-                        value={newField.optionsString}
-                        onChange={(e) =>
-                          setNewField((prev) => ({ ...prev, optionsString: e.target.value }))
-                        }
-                        placeholder="Male, Female, Other"
-                        className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none bg-white focus:border-accent"
-                        required
-                      />
-                    </div>
-                  )}
-
-                  <div className="pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setNewField((prev) => ({ ...prev, required: !prev.required }))}
-                      className="flex items-center gap-2.5 text-sm text-navySoft hover:text-navy cursor-pointer select-none"
-                    >
-                      {newField.required ? (
-                        <CheckSquare size={16} className="text-accent" />
-                      ) : (
-                        <Square size={16} />
-                      )}
-                      <span>Mark Field as Required</span>
-                    </button>
-                  </div>
-
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition duration-200"
-                    >
-                      Add Field to Preview
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              <div className="lg:col-span-2 border border-gray-100 rounded-xl p-6 shadow-sm">
-                <h2 className="text-lg font-bold text-navy mb-4 border-b border-gray-100 pb-2">
-                  Form Fields Preview
-                </h2>
-                
-                {fields.length === 0 ? (
-                  <p className="text-sm text-navySoft italic">No custom fields added yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {fields.map((field, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 rounded-lg border border-gray-100 bg-gray-50/50"
-                      >
-                        <div>
-                          <span className="block text-sm font-semibold text-navy">
-                            {field.label} {field.required && <span className="text-red-500">*</span>}
-                          </span>
-                          <span className="block text-xs text-navySoft capitalize">
-                            Type: {field.type} | Slug Key: <code className="font-mono text-[11px] bg-white px-1 py-0.5 rounded">{field.fieldKey}</code>
-                          </span>
-                          {field.options && field.options.length > 0 && (
-                            <span className="block text-xs text-navySoft mt-1">
-                              Options: {field.options.join(", ")}
-                            </span>
-                          )}
+                      <div className="flex items-center gap-4">
+                        {/* Orange document icon container */}
+                        <div className="w-10 h-10 rounded-lg bg-[#FF5A3C]/10 flex items-center justify-center text-accent shrink-0">
+                          <FileText size={18} />
                         </div>
+                        <div>
+                          <span className="block font-bold text-navy text-[15px]">{field.label}</span>
+                          <span className="block text-[11px] font-bold text-gray-400 tracking-wider mt-0.5">
+                            {subLabel}
+                          </span>
+                        </div>
+                      </div>
 
+                      <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => handleRemoveField(index)}
-                          className="p-1.5 text-navySoft hover:text-red-500 transition"
-                          title="Remove Field"
+                          className="w-8 h-8 rounded-lg border border-gray-100 hover:border-gray-200 flex items-center justify-center text-navySoft hover:text-navy transition bg-white"
                         >
-                          <Trash size={15} />
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveField(idx, e)}
+                          className="w-8 h-8 rounded-lg border border-gray-100 hover:border-red-200 flex items-center justify-center text-navySoft hover:text-red-500 transition bg-white"
+                        >
+                          <Trash size={13} />
                         </button>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  );
+                })}
+
+                {/* ADD FIELD DOTTED BOX */}
+                <button
+                  type="button"
+                  onClick={handleAddField}
+                  className="w-full py-4 border-2 border-dashed border-gray-200 hover:border-accent rounded-xl flex items-center justify-center text-navySoft hover:text-accent font-bold text-sm transition duration-200 cursor-pointer bg-white"
+                >
+                  + ADD FIELD
+                </button>
               </div>
+
+              {/* RIGHT COLUMN: CONFIGURATION PANEL */}
+              <div className="border border-gray-200 rounded-2xl p-8 bg-white h-fit shadow-sm">
+                
+                {/* FIELD TYPE SELECTOR */}
+                <div>
+                  <h3 className="text-lg font-bold text-navy mb-4">Field type</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {FIELD_TYPES.map((t) => {
+                      const isSelected = activeField?.type === t.value;
+                      return (
+                        <button
+                          type="button"
+                          key={t.value}
+                          onClick={() => handleFieldChange("type", t.value)}
+                          disabled={!activeField}
+                          className={`w-full py-3 px-4 border rounded-lg text-sm font-semibold text-left transition duration-200 ${
+                            isSelected
+                              ? "border-accent bg-accent/5 text-accent"
+                              : "border-gray-200 hover:border-gray-300 text-navy bg-white"
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="h-[1px] bg-gray-100 my-8" />
+
+                {/* FIELD SETTINGS */}
+                <div>
+                  <h3 className="text-lg font-bold text-navy mb-4">Field settings</h3>
+                  
+                  {activeField ? (
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Field label</label>
+                        <input
+                          type="text"
+                          value={activeField.label}
+                          onChange={(e) => handleFieldChange("label", e.target.value)}
+                          placeholder="eg. Stream / Core Subjects"
+                          className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+
+                      {["dropdown", "radio", "checkbox"].includes(activeField.type) && (
+                        <div>
+                          <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">
+                            Options (Comma-separated)
+                          </label>
+                          <input
+                            type="text"
+                            value={activeField.options ? activeField.options.join(", ") : ""}
+                            onChange={(e) =>
+                              handleFieldChange(
+                                "options",
+                                e.target.value.split(",").map((o) => o.trim()).filter(Boolean)
+                              )
+                            }
+                            placeholder="Option 1, Option 2, Option 3"
+                            className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent"
+                          />
+                        </div>
+                      )}
+
+                      <div className="pt-2">
+                        <label className="flex items-center gap-2.5 text-sm text-navySoft cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={activeField.required}
+                            onChange={(e) => handleFieldChange("required", e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+                          />
+                          <span>Mark as Required</span>
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-navySoft italic">Select a field card on the left to edit its configuration.</p>
+                  )}
+                </div>
+              </div>
+
             </div>
           )}
         </main>
