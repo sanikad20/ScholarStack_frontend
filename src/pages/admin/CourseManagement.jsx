@@ -74,6 +74,20 @@ export default function CourseManagement() {
     });
   };
 
+  const handleAddClick = () => {
+    setEditingId(null);
+    setForm({
+      name: "",
+      session: "",
+      admissionCapacity: "",
+      description: "",
+      eligibility10: "",
+      eligibility12: "",
+      requiredDocs: [],
+    });
+    setShowForm(true);
+  };
+
   const handleEditClick = (course) => {
     setEditingId(course._id);
     setForm({
@@ -311,7 +325,7 @@ export default function CourseManagement() {
             <div className="mt-8 border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead>
-                     <tr className="text-left text-xs uppercase font-bold text-gray-400 border-b border-gray-100">
+                  <tr className="text-left text-xs uppercase font-bold text-gray-400 border-b border-gray-100">
                     <th className="px-6 py-4 pb-3">Course</th>
                     <th className="px-6 py-4 pb-3">Capacity</th>
                     <th className="px-6 py-4 pb-3">Session</th>
@@ -320,7 +334,7 @@ export default function CourseManagement() {
                     <th className="px-6 py-4 pb-3 text-right">&nbsp;</th>
                   </tr>
                 </thead>
-               <tbody className="divide-y divide-gray-100 bg-white">
+                <tbody className="divide-y divide-gray-100 bg-white">
                   {courses.map((course) => {
                     const eligibilityText = course.eligibilityCriteria
                       ? `12th % >= ${course.eligibilityCriteria.minMarks12 || 60}, PCM`
@@ -374,7 +388,7 @@ export default function CourseManagement() {
 
               {courses.length === 0 && (
                 <div className="text-center py-16 text-navySoft font-semibold bg-white">
-                  No courses added yet. Click "Add Course" to get started.
+                  No courses added yet. Click "New Course +" to get started.
                 </div>
               )}
             </div>
