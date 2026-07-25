@@ -220,13 +220,13 @@ export default function RegisterInstitution() {
                         value={form.password}
                         onChange={handleChange}
                         placeholder="Create password"
-                        className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-10 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/30"
+                        className="w-full rounded-lg border border-gray-200 px-4 py-3 pr-10 text-sm outline-none focus:border-accent transition duration-200 bg-gray-50/50"
                         required
                         minLength={6}
                       />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={showPassword ? () => setShowPassword(false) : () => setShowPassword(true)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-navySoft hover:text-navy transition"
                       >
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -267,6 +267,14 @@ export default function RegisterInstitution() {
                 </button>
               </div>
             </form>
+
+            {/* Back link to Student Register */}
+            <div className="mt-8 text-sm text-navySoft text-center">
+              Are you a student looking to apply?{" "}
+              <Link to="/register" className="font-semibold text-accent hover:underline">
+                Register as Student
+              </Link>
+            </div>
           </div>
         </div>
       </div>
