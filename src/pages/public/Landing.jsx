@@ -48,8 +48,6 @@ const CARD_THEMES = [
   { from: "#FDF1DA", to: "#F1D08F", shape: "#C99A2E" },
 ];
 
-// Full-bleed container: fills any realistic screen width, only caps on
-// genuinely ultra-wide monitors so text doesn't stretch absurdly.
 const WRAP = "max-w-7xl mx-auto px-6 lg:px-10";
 
 function Hero() {
@@ -79,13 +77,13 @@ function Hero() {
             <div className="flex gap-5 mt-10">
               <Link
                 to="/register"
-                className="bg-accent text-white px-8 py-4 rounded-full font-semibold"
+                className="bg-accent text-white px-8 py-4 rounded-full font-semibold hover:bg-accent-dark transition"
               >
                 Start Applying
               </Link>
               <Link
                 to="/for-institutions"
-                className="border px-8 py-4 rounded-full font-semibold"
+                className="border px-8 py-4 rounded-full font-semibold hover:bg-gray-50 transition"
               >
                 Browse Institutions
               </Link>
@@ -94,6 +92,44 @@ function Hero() {
 
           <div className="flex justify-center lg:justify-end">
             <img src={heroIllustration} alt="" className="w-full max-w-[760px]" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PortalSwitcher() {
+  return (
+    <section className="py-12 bg-white">
+      <div className={WRAP}>
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {/* Student Portal Card */}
+          <div className="p-8 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-bold text-navy">Student Portal</h3>
+            <p className="text-sm text-gray-500 mt-2">
+              Browse university courses, apply online, and upload your documents.
+            </p>
+            <Link
+              to="/login"
+              className="inline-block mt-5 bg-accent text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-accent-dark transition"
+            >
+              Enter Student Console
+            </Link>
+          </div>
+
+          {/* Admin Portal Card */}
+          <div className="p-8 border border-gray-100 rounded-2xl bg-[#FFF3EA] shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-bold text-navy">Institution Admin</h3>
+            <p className="text-sm text-gray-500 mt-2">
+              Manage courses, build application forms, and review student applications.
+            </p>
+            <Link
+              to="/for-institutions"
+              className="inline-block mt-5 border-2 border-accent text-accent px-6 py-2 rounded-full text-sm font-semibold hover:bg-accent/5 transition"
+            >
+              Enter Admin Portal
+            </Link>
           </div>
         </div>
       </div>
@@ -288,6 +324,7 @@ export default function Landing() {
       <PublicNav />
       <main>
         <Hero />
+        <PortalSwitcher />
         <StatsBar />
         <InstitutionHighlights institutions={institutions} status={status} />
         <HowItWorks />
