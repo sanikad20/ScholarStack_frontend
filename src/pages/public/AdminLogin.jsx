@@ -180,7 +180,7 @@ export default function AdminLogin() {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={showPassword ? () => setShowPassword(false) : () => setShowPassword(true)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-navySoft hover:text-navy transition"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -221,6 +221,14 @@ export default function AdminLogin() {
                 </button>
               </div>
             </form>
+
+            {/* Back link to Student Login */}
+            <div className="mt-8 text-sm text-navySoft text-center">
+              Are you a student?{" "}
+              <Link to="/login" className="font-semibold text-accent hover:underline">
+                Sign in to Student Console
+              </Link>
+            </div>
           </div>
         </div>
       </div>
