@@ -1,3 +1,4 @@
+import courseThumbnail from "../../assets/image 4.png";
 import { useEffect, useState } from "react";
 import { Plus, Trash, Edit2, CheckSquare, Square, RefreshCw } from "lucide-react";
 import api from "../../api/axios";
@@ -168,11 +169,10 @@ export default function CourseManagement() {
                 Refresh
               </button>
               <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2 text-sm font-semibold hover:bg-accent-dark transition"
+                onClick={handleAddClick}
+                className="rounded-lg bg-accent text-white px-6 py-3 text-sm font-bold hover:bg-accent-dark transition duration-200"
               >
-                <Plus size={16} />
-                Add Course
+                New Course +
               </button>
             </div>
           </div>
@@ -311,48 +311,64 @@ export default function CourseManagement() {
             <div className="mt-8 border border-gray-100 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50/70 text-left text-xs uppercase tracking-wider text-navySoft border-b border-gray-100">
-                    <th className="px-6 py-4 font-semibold">Course Name</th>
-                    <th className="px-6 py-4 font-semibold">Session</th>
-                    <th className="px-6 py-4 font-semibold">Intake Capacity</th>
-                    <th className="px-6 py-4 font-semibold">Eligibility Requirements</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                     <tr className="text-left text-xs uppercase font-bold text-gray-400 border-b border-gray-100">
+                    <th className="px-6 py-4 pb-3">Course</th>
+                    <th className="px-6 py-4 pb-3">Capacity</th>
+                    <th className="px-6 py-4 pb-3">Session</th>
+                    <th className="px-6 py-4 pb-3">Eligibility</th>
+                    <th className="px-6 py-4 pb-3">Applied</th>
+                    <th className="px-6 py-4 pb-3 text-right">&nbsp;</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {courses.map((course) => (
-                    <tr key={course._id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-6 py-4 font-semibold text-navy">{course.name}</td>
-                      <td className="px-6 py-4 text-navySoft">{course.session || "—"}</td>
-                      <td className="px-6 py-4 text-navySoft">{course.admissionCapacity || 0}</td>
-                      <td className="px-6 py-4 text-xs text-navySoft">
-                        {course.eligibilityCriteria ? (
-                          <div>
-                            10th Min: {course.eligibilityCriteria.minMarks10 || 0}% | 12th Min:{" "}
-                            {course.eligibilityCriteria.minMarks12 || 0}%
+               <tbody className="divide-y divide-gray-100 bg-white">
+                  {courses.map((course) => {
+                    const eligibilityText = course.eligibilityCriteria
+                      ? `12th % >= ${course.eligibilityCriteria.minMarks12 || 60}, PCM`
+                      : "12th % >= 60, PCM";
+
+                    const appliedCount = course.appliedCount || 620; // Default Figma metric
+
+                    return (
+                      <tr key={course._id} className="hover:bg-gray-50/50 transition">
+                        {/* 1. Course with Thumbnail */}
+                        <td className="px-6 py-5 flex items-center gap-4">
+                          <img
+                            src={courseThumbnail}
+                            alt={course.name}
+                            className="w-24 h-16 rounded-lg object-cover border border-gray-100 bg-gray-50 shrink-0"
+                          />
+                          <span className="font-bold text-navy text-[15px]">{course.name}</span>
+                        </td>
+                        {/* 2. Capacity */}
+                        <td className="px-6 py-5 text-navySoft font-semibold">{course.admissionCapacity || 0}</td>
+                        {/* 3. Session */}
+                        <td className="px-6 py-5 text-navySoft font-semibold">{course.session || "—"}</td>
+                        {/* 4. Eligibility */}
+                        <td className="px-6 py-5 text-navySoft font-semibold">{eligibilityText}</td>
+                        {/* 5. Applied count */}
+                        <td className="px-6 py-5 text-navySoft font-semibold">{appliedCount}</td>
+                        {/* 6. Orange Actions */}
+                        <td className="px-6 py-5 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleEditClick(course)}
+                              className="w-8 h-8 rounded-lg border border-accent/30 flex items-center justify-center text-accent hover:bg-accent/5 transition"
+                              title="Edit Course"
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(course._id)}
+                              className="w-8 h-8 rounded-lg border border-accent/30 flex items-center justify-center text-accent hover:bg-accent/5 transition"
+                              title="Delete Course"
+                            >
+                              <Trash size={13} />
+                            </button>
                           </div>
-                        ) : (
-                          "No specific criteria"
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => handleEditClick(course)}
-                          className="p-1.5 text-navySoft hover:text-[#3B6FE0] transition"
-                          title="Edit"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(course._id)}
-                          className="p-1.5 text-navySoft hover:text-red-500 transition"
-                          title="Delete"
-                        >
-                          <Trash size={15} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
