@@ -50,16 +50,16 @@ export default function Login() {
       if (role === "student") {
         navigate("/student/dashboard");
       } else if (role === "instAdmin") {
-        navigate("/admin/applications");
+        navigate("/admin/dashboard");
       } else if (role === "superAdmin") {
-        navigate("/superadmin/institutions");
+        navigate("/superadmin/dashboard");
       } else {
         navigate("/");
       }
     } catch (err) {
       setError(
         err.response?.data?.message ??
-          "Couldn't sign in. Check your details and try again."
+        "Couldn't sign in. Check your details and try again."
       );
     } finally {
       setLoading(false);

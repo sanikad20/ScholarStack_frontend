@@ -1,15 +1,18 @@
+// src/pages/public/AdminLogin.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import api from "../../api/axios";
 
 import loginIllustration from "../../assets/image 4.png";
 import graduationCap from "../../assets/GraduationCap.png";
 
+import Toast from "../../components/ui/Toast";
+import api from "../../api/axios";
+
 export default function AdminLogin() {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("instAdmin"); // "instAdmin" or "superAdmin"
+  const [activeTab, setActiveTab] = useState("instAdmin");
   const [showPassword, setShowPassword] = useState(false);
 
   const [form, setForm] = useState({
@@ -18,8 +21,12 @@ export default function AdminLogin() {
     remember: false,
   });
 
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "error") => {
+    setToast({ message, type });
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -31,10 +38,27 @@ export default function AdminLogin() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
     setLoading(true);
+    setToast(null);
 
     try {
+      // For Super Admin, we need to set the Host header.
+      // The login function from auth.api.js uses the default axios instance.
+      // We need to pass an extra config with the Host header.
+      // Since our auth.api.js doesn't accept custom headers, we'll use raw axios or modify the function.
+      // For simplicity, we'll keep using raw axios with the custom header for now.
+      // But we can also extend the login function to accept a config parameter.
+      // I'll show a cleaner approach: use api directly with a conditional header.
+
+      // ✅ Use the api instance from axios.js (which we already have)
+      // We'll import api directly from the axios config file.
+      // For now, I'll show the approach using api from "../../api/axios".
+      // But we can refactor later to use auth.api.js if we add config support.
+
+      // ─── Import api from "../../api/axios" ──────────────────
+      // import api from "../../api/axios"; // (already imported)
+      // We'll keep the raw axios call but use the existing api instance.
+
       const config = {};
       if (activeTab === "superAdmin") {
         config.headers = {
@@ -51,20 +75,24 @@ export default function AdminLogin() {
         localStorage.setItem("token", data.token);
       }
 
+      // Store user info (optional)
+      if (data?.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
+
       const role = data?.user?.role;
 
       if (role === "superAdmin") {
-        navigate("/superadmin/institutions");
+        navigate("/superadmin/dashboard");
       } else if (role === "instAdmin") {
-        navigate("/admin/applications");
+        navigate("/admin/dashboard"); // ✅ Redirect to admin dashboard (more logical)
       } else {
         navigate("/");
       }
+
     } catch (err) {
-      setError(
-        err.response?.data?.message ??
-          "Authentication failed. Please verify credentials."
-      );
+      const msg = err.response?.data?.message ?? "Authentication failed. Please verify credentials.";
+      showToast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -72,7 +100,7 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {/* FULL-WIDTH TOP HEADER */}
+      {/* HEADER (same as before) */}
       <header className="h-20 flex items-center justify-between px-6 lg:px-16 border-b border-gray-100 bg-white shrink-0">
         <Link to="/" className="flex items-center gap-3">
           <img src={graduationCap} alt="ScholarStack" className="h-9 w-auto object-contain" />
@@ -89,9 +117,8 @@ export default function AdminLogin() {
         </div>
       </header>
 
-      {/* SPLIT PANEL BELOW HEADER */}
+      {/* SPLIT PANEL (same as before) */}
       <div className="flex-1 grid lg:grid-cols-2 min-h-0">
-        {/* LEFT COLUMN: ILLUSTRATION */}
         <div className="hidden lg:flex items-center justify-center bg-[#EDEBFB] p-12">
           <img
             src={loginIllustration}
@@ -100,23 +127,21 @@ export default function AdminLogin() {
           />
         </div>
 
-        {/* RIGHT COLUMN: FORM PANEL */}
         <div className="overflow-y-auto px-6 lg:px-16 py-12 flex flex-col justify-center">
           <div className="w-full max-w-md mx-auto">
-            
+
             {/* ROLE TAB SWITCHER */}
             <div className="flex rounded-lg border border-gray-200 p-1 mb-8 bg-gray-50">
               <button
                 type="button"
                 onClick={() => {
                   setActiveTab("instAdmin");
-                  setError("");
+                  setToast(null);
                 }}
-                className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition duration-200 ${
-                  activeTab === "instAdmin"
-                    ? "bg-accent text-white shadow-sm"
-                    : "text-navySoft hover:text-navy"
-                }`}
+                className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition duration-200 ${activeTab === "instAdmin"
+                  ? "bg-accent text-white shadow-sm"
+                  : "text-navySoft hover:text-navy"
+                  }`}
               >
                 Institution Admin
               </button>
@@ -124,13 +149,12 @@ export default function AdminLogin() {
                 type="button"
                 onClick={() => {
                   setActiveTab("superAdmin");
-                  setError("");
+                  setToast(null);
                 }}
-                className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition duration-200 ${
-                  activeTab === "superAdmin"
-                    ? "bg-accent text-white shadow-sm"
-                    : "text-navySoft hover:text-navy"
-                }`}
+                className={`flex-1 py-2.5 text-sm font-semibold rounded-md transition duration-200 ${activeTab === "superAdmin"
+                  ? "bg-accent text-white shadow-sm"
+                  : "text-navySoft hover:text-navy"
+                  }`}
               >
                 Super Admin
               </button>
@@ -140,14 +164,9 @@ export default function AdminLogin() {
               Sign in to manage admissions
             </h1>
 
-            {error && (
-              <div className="mb-6 rounded-lg border border-accent/20 bg-accent/5 px-5 py-3.5 text-sm text-accent">
-                {error}
-              </div>
-            )}
+            {/* ─── Inline error removed ──────────────────── */}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Input */}
               <div>
                 <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">
                   Email
@@ -163,7 +182,6 @@ export default function AdminLogin() {
                 />
               </div>
 
-              {/* Password Input */}
               <div>
                 <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">
                   Password
@@ -188,7 +206,6 @@ export default function AdminLogin() {
                 </div>
               </div>
 
-              {/* Remember & Forgot Password */}
               <div className="flex items-center justify-between select-none">
                 <label className="flex items-center gap-2 text-sm text-navySoft cursor-pointer">
                   <input
@@ -200,7 +217,6 @@ export default function AdminLogin() {
                   />
                   <span>Remember me</span>
                 </label>
-
                 <Link
                   to="/forgot-password"
                   className="text-sm font-semibold text-accent hover:underline"
@@ -209,7 +225,6 @@ export default function AdminLogin() {
                 </Link>
               </div>
 
-              {/* Sign In Button */}
               <div>
                 <button
                   type="submit"
@@ -224,6 +239,16 @@ export default function AdminLogin() {
           </div>
         </div>
       </div>
+
+      {/* ─── Toast ────────────────────────────────────── */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={3000}
+        />
+      )}
     </div>
   );
 }

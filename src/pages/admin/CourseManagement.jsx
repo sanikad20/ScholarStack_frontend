@@ -1,52 +1,61 @@
+// src/pages/admin/CourseManagement.jsx
 import { useEffect, useState } from "react";
-import { Plus, Trash, Edit2, CheckSquare, Square, RefreshCw } from "lucide-react";
-import api from "../../api/axios";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus, RefreshCw, BookOpen, Users, Calendar, CheckCircle, XCircle, Search } from "lucide-react";
 
 import AdminTopbar from "../../components/layout/AdminTopbar";
 import AdminSidebar from "../../components/layout/AdminSidebar";
 import Footer from "../../components/layout/Footer";
+import Toast from "../../components/ui/Toast";
+
+import { getCourses } from "../../api/courses.api";
+
+// ─── Fallback Courses ──────────────────────────────────
+const FALLBACK_COURSES = [ /* ... same as before, include active/inactive */];
 
 export default function CourseManagement() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [toast, setToast] = useState(null);
 
-  const [form, setForm] = useState({
-    name: "",
-    session: "",
-    admissionCapacity: "",
-    description: "",
-    eligibility10: "",
-    eligibility12: "",
-    requiredDocs: [],
-  });
+  // ─── Read status from URL ───────────────────────────
+  const statusFilter = searchParams.get("status") || "all"; // "all", "active", "inactive"
 
-  const [editingId, setEditingId] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const AVAILABLE_DOCS = [
-    "10 BOARD MARK SHEET",
-    "12 BOARD MARK SHEET",
-    "FRONT ADHAAR CARD",
-    "BACK ADHAAR CARD",
-    "CUET SCORE CARD",
-    "MIGRATION CERTIFICATE",
-    "TRANSFER CERTIFICATE",
-  ];
+  const showToast = (message, type = "success") => setToast({ message, type });
+
+  const loadFallbackData = () => {
+    setCourses(FALLBACK_COURSES);
+    setLoading(false);
+    showToast("⚠️ Using fallback data (server offline)", "info");
+  };
 
   const fetchCourses = async () => {
     setLoading(true);
-    setError("");
     try {
-      const { data } = await api.get("/courses");
-      if (data?.success && data?.data) {
-        setCourses(data.data);
-      } else {
-        setError("Failed to fetch courses.");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      try {
+        const { data } = await getCourses();
+        clearTimeout(timeoutId);
+        if (data?.success && data?.data) {
+          setCourses(data.data);
+        } else {
+          showToast("Failed to load courses.", "error");
+          loadFallbackData();
+        }
+      } catch (err) {
+        clearTimeout(timeoutId);
+        console.warn("Server unreachable – using fallback", err);
+        loadFallbackData();
       }
     } catch (err) {
-      setError("Error connecting to courses list API.");
+      showToast("Error connecting to courses API.", "error");
+      loadFallbackData();
     } finally {
       setLoading(false);
     }
@@ -54,109 +63,49 @@ export default function CourseManagement() {
 
   useEffect(() => {
     fetchCourses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  // ─── Filter courses by status + search ──────────────
+  const filteredCourses = courses.filter((course) => {
+    // Status filter
+    if (statusFilter === "active" && !course.isActive) return false;
+    if (statusFilter === "inactive" && course.isActive) return false;
 
-  const toggleDoc = (doc) => {
-    setForm((prev) => {
-      const exists = prev.requiredDocs.includes(doc);
-      return {
-        ...prev,
-        requiredDocs: exists
-          ? prev.requiredDocs.filter((d) => d !== doc)
-          : [...prev.requiredDocs, doc],
-      };
-    });
-  };
-
-  const handleEditClick = (course) => {
-    setEditingId(course._id);
-    setForm({
-      name: course.name,
-      session: course.session || "",
-      admissionCapacity: course.admissionCapacity || "",
-      description: course.description || "",
-      eligibility10: course.eligibilityCriteria?.minMarks10 || "",
-      eligibility12: course.eligibilityCriteria?.minMarks12 || "",
-      requiredDocs: course.requiredDocuments || [],
-    });
-    setShowForm(true);
-  };
-
-  const handleCancel = () => {
-    setEditingId(null);
-    setShowForm(false);
-    setForm({
-      name: "",
-      session: "",
-      admissionCapacity: "",
-      description: "",
-      eligibility10: "",
-      eligibility12: "",
-      requiredDocs: [],
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    setError("");
-
-    const payload = {
-      name: form.name,
-      session: form.session,
-      admissionCapacity: Number(form.admissionCapacity),
-      description: form.description,
-      requiredDocuments: form.requiredDocs,
-      eligibilityCriteria: {
-        minMarks10: Number(form.eligibility10) || 0,
-        minMarks12: Number(form.eligibility12) || 0,
-      },
-    };
-
-    try {
-      if (editingId) {
-        await api.put(`/courses/${editingId}`, payload);
-      } else {
-        await api.post("/courses", payload);
-      }
-      alert(`Course ${editingId ? "updated" : "created"} successfully!`);
-      handleCancel();
-      fetchCourses();
-    } catch (err) {
-      setError(err.response?.data?.message ?? "Error saving course details.");
-    } finally {
-      setSubmitting(false);
+    // Search filter (by name or session)
+    const term = searchTerm.toLowerCase().trim();
+    if (term) {
+      const nameMatch = course.name?.toLowerCase().includes(term);
+      const sessionMatch = course.session?.toLowerCase().includes(term);
+      return nameMatch || sessionMatch;
     }
+    return true;
+  });
+
+  const hasActiveFilters = () => {
+    return statusFilter !== "all" || searchTerm.trim() !== "";
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this course?")) return;
-    try {
-      await api.delete(`/courses/${id}`);
-      alert("Course deleted successfully.");
-      fetchCourses();
-    } catch (err) {
-      alert("Error deleting course. Check if application records depend on this course.");
-    }
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSearchParams({});
+  };
+
+  const handleRowClick = (courseId) => {
+    navigate(`/admin/courses/${courseId}`);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-navy">
       <AdminTopbar />
-
       <div className="flex flex-1">
         <AdminSidebar />
-
         <main className="flex-1 px-8 py-10">
+          {/* ─── Header ────────────────────────────────── */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-navy">Course Management</h1>
-              <p className="mt-1 text-navySoft">Configure university courses, sessions, capacity, and admission requirements</p>
+              <h1 className="text-3xl font-bold text-navy">Courses</h1>
+              <p className="mt-1 text-navySoft">Manage your institution's courses and their admission settings</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -168,203 +117,160 @@ export default function CourseManagement() {
                 Refresh
               </button>
               <button
-                onClick={() => setShowForm(true)}
+                onClick={() => navigate("/admin/courses/new")}
                 className="inline-flex items-center gap-2 rounded-lg bg-accent text-white px-4 py-2 text-sm font-semibold hover:bg-accent-dark transition"
               >
                 <Plus size={16} />
-                Add Course
+                Create Course
               </button>
             </div>
           </div>
 
-          {error && (
-            <div className="mt-6 rounded-lg border border-accent/20 bg-accent/5 px-5 py-3.5 text-sm text-accent">
-              {error}
+          {/* ─── Search + Filter bar ────────────────── */}
+          <div className="mt-8 flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="text"
+                placeholder="Search by course name or session..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg outline-none focus:border-accent bg-white transition"
+              />
             </div>
-          )}
-
-          {showForm && (
-            <div className="mt-8 border border-gray-200 rounded-xl p-6 bg-gray-50/50 shadow-sm">
-              <h2 className="text-lg font-bold text-navy mb-6">
-                {editingId ? "Edit Course Configuration" : "Add New Course"}
-              </h2>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Course Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                      placeholder="eg. B.Tech Computer Science"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent bg-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Session</label>
-                    <input
-                      type="text"
-                      name="session"
-                      value={form.session}
-                      onChange={handleChange}
-                      placeholder="eg. 2026-2030"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent bg-white"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Intake Capacity</label>
-                    <input
-                      type="number"
-                      name="admissionCapacity"
-                      value={form.admissionCapacity}
-                      onChange={handleChange}
-                      placeholder="eg. 60"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent bg-white"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Description</label>
-                  <textarea
-                    name="description"
-                    value={form.description}
-                    onChange={handleChange}
-                    placeholder="Brief description of course modules and syllabus outline..."
-                    className="w-full h-20 rounded-lg border border-gray-200 p-3 text-sm bg-white outline-none focus:border-accent resize-none"
-                  />
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Min 10th percentage required</label>
-                    <input
-                      type="number"
-                      name="eligibility10"
-                      value={form.eligibility10}
-                      onChange={handleChange}
-                      placeholder="eg. 60"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-navySoft mb-2 uppercase">Min 12th percentage required</label>
-                    <input
-                      type="number"
-                      name="eligibility12"
-                      value={form.eligibility12}
-                      onChange={handleChange}
-                      placeholder="eg. 60"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-accent bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-navySoft mb-3 uppercase">Required verification documents</label>
-                  <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {AVAILABLE_DOCS.map((doc) => {
-                      const selected = form.requiredDocs.includes(doc);
-                      return (
-                        <button
-                          type="button"
-                          key={doc}
-                          onClick={() => toggleDoc(doc)}
-                          className="flex items-center gap-2 text-sm text-navySoft hover:text-navy cursor-pointer select-none text-left"
-                        >
-                          {selected ? <CheckSquare size={16} className="text-accent" /> : <Square size={16} />}
-                          <span>{doc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="flex gap-4">
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="inline-flex justify-center rounded-lg bg-accent text-white px-6 py-2.5 text-sm font-bold hover:bg-accent-dark transition duration-200 disabled:opacity-60"
-                  >
-                    {submitting ? "Saving..." : "Save Configuration"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="inline-flex justify-center rounded-lg border border-gray-200 px-6 py-2.5 text-sm font-bold text-navySoft hover:bg-gray-100 transition duration-200"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+            <div className="flex gap-2 shrink-0 items-center">
+              <button
+                onClick={() => setSearchParams({ status: "all" })}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition ${statusFilter === "all"
+                    ? "bg-accent text-white"
+                    : "bg-gray-100 text-navySoft hover:bg-gray-200"
+                  }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setSearchParams({ status: "active" })}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition ${statusFilter === "active"
+                    ? "bg-accent text-white"
+                    : "bg-gray-100 text-navySoft hover:bg-gray-200"
+                  }`}
+              >
+                Active
+              </button>
+              <button
+                onClick={() => setSearchParams({ status: "inactive" })}
+                className={`px-4 py-2 text-sm font-medium rounded-full transition ${statusFilter === "inactive"
+                    ? "bg-accent text-white"
+                    : "bg-gray-100 text-navySoft hover:bg-gray-200"
+                  }`}
+              >
+                Inactive
+              </button>
+              {hasActiveFilters() && (
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-accent hover:underline ml-2"
+                >
+                  Clear
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
+          {/* ─── Table ────────────────────────────────── */}
           {loading && courses.length === 0 ? (
-            <div className="py-24 text-center text-navySoft font-semibold">Loading courses database...</div>
+            <div className="py-24 text-center text-navySoft font-semibold">Loading courses...</div>
           ) : (
-            <div className="mt-8 border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="mt-6 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50/70 text-left text-xs uppercase tracking-wider text-navySoft border-b border-gray-100">
-                    <th className="px-6 py-4 font-semibold">Course Name</th>
-                    <th className="px-6 py-4 font-semibold">Session</th>
-                    <th className="px-6 py-4 font-semibold">Intake Capacity</th>
-                    <th className="px-6 py-4 font-semibold">Eligibility Requirements</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                  <tr className="text-left text-xs uppercase font-bold text-gray-400 border-b border-gray-100">
+                    <th className="px-4 py-4 pb-3 font-semibold">Course Name</th>
+                    <th className="px-4 py-4 pb-3 font-semibold">Session</th>
+                    <th className="px-4 py-4 pb-3 font-semibold">Capacity</th>
+                    <th className="px-4 py-4 pb-3 font-semibold">Applications</th>
+                    <th className="px-4 py-4 pb-3 font-semibold">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
-                  {courses.map((course) => (
-                    <tr key={course._id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-6 py-4 font-semibold text-navy">{course.name}</td>
-                      <td className="px-6 py-4 text-navySoft">{course.session || "—"}</td>
-                      <td className="px-6 py-4 text-navySoft">{course.admissionCapacity || 0}</td>
-                      <td className="px-6 py-4 text-xs text-navySoft">
-                        {course.eligibilityCriteria ? (
-                          <div>
-                            10th Min: {course.eligibilityCriteria.minMarks10 || 0}% | 12th Min:{" "}
-                            {course.eligibilityCriteria.minMarks12 || 0}%
+                  {filteredCourses.map((course) => (
+                    <tr
+                      key={course._id}
+                      onClick={() => handleRowClick(course._id)}
+                      className="hover:bg-gray-50/80 transition cursor-pointer group"
+                    >
+                      <td className="px-4 py-4 text-navy font-medium">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                            <BookOpen size={16} />
                           </div>
-                        ) : (
-                          "No specific criteria"
-                        )}
+                          <span className="font-semibold">{course.name}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => handleEditClick(course)}
-                          className="p-1.5 text-navySoft hover:text-[#3B6FE0] transition"
-                          title="Edit"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(course._id)}
-                          className="p-1.5 text-navySoft hover:text-red-500 transition"
-                          title="Delete"
-                        >
-                          <Trash size={15} />
-                        </button>
+                      <td className="px-4 py-4 text-navySoft">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={14} className="text-gray-400" />
+                          {course.session || "—"}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-navySoft">
+                        <div className="flex items-center gap-1.5">
+                          <Users size={14} className="text-gray-400" />
+                          {course.admissionCapacity || 0}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-navySoft">
+                        <span className="font-medium text-navy">0</span>
+                      </td>
+                      <td className="px-4 py-4">
+                        {course.isActive ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-0.5 rounded-full">
+                            <CheckCircle size={12} />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-0.5 rounded-full">
+                            <XCircle size={12} />
+                            Inactive
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
 
-              {courses.length === 0 && (
-                <div className="text-center py-16 text-navySoft font-semibold bg-white">
-                  No courses added yet. Click "Add Course" to get started.
+              {filteredCourses.length === 0 && (
+                <div className="text-center py-16 text-navySoft font-semibold bg-white border border-dashed rounded-xl mt-4">
+                  {hasActiveFilters() ? (
+                    <>
+                      No courses match your filters.
+                      <button
+                        onClick={clearFilters}
+                        className="ml-2 text-accent hover:underline"
+                      >
+                        Clear filters
+                      </button>
+                    </>
+                  ) : (
+                    "No courses found. Click 'Create Course' to add your first course."
+                  )}
                 </div>
               )}
             </div>
           )}
         </main>
       </div>
+
+      {/* ─── Toast ────────────────────────────────────── */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={3000}
+        />
+      )}
 
       <Footer />
     </div>

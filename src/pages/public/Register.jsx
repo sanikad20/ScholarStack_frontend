@@ -245,13 +245,6 @@ export default function Register() {
               {loading ? "Creating account..." : "Create Account"}
               {!loading && <span>→</span>}
             </button>
-
-            <div className="mt-8 text-base text-navySoft">
-              Registering an institution?
-              <Link to="/register-institution" className="ml-1 font-medium text-accent">
-                Register Institution
-              </Link>
-            </div>
           </form>
         </div>
       </div>
