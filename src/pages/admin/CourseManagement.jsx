@@ -122,6 +122,7 @@ export default function CourseManagement() {
               >
                 <Plus size={16} />
                 Create Course
+
               </button>
             </div>
           </div>

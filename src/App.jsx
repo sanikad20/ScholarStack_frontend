@@ -17,6 +17,7 @@ import MyApplications from "./pages/student/MyApplications.jsx";
 import Profile from "./pages/student/Profile.jsx";
 import DocumentUpload from "./pages/student/DocumentUpload.jsx";
 
+
 // INSTITUTION ADMIN PAGES
 import AdminDashboard from "./pages/admin/AdminDashboard.jsx";
 import ApplicationsList from "./pages/admin/ApplicationsList.jsx";

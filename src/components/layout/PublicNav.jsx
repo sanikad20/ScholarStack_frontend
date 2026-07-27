@@ -62,6 +62,7 @@ export default function PublicNav({ view, setView }) {
               Sign In
             </Link>
           </div>
+
         </div>
       </div>
     </header>

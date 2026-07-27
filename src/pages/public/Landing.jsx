@@ -44,11 +44,15 @@ const STUDENT_STEPS = [
   { icon: TrendingUp, title: "Track", body: "Receive updates until admission." },
 ];
 
+<<<<<<< HEAD
 const ADMIN_STEPS = [
   { icon: Settings2, title: "Set Up", body: "Configure courses and admission forms." },
   { icon: FileCheck, title: "Review", body: "Verify documents and applications." },
   { icon: Sparkles, title: "Admit", body: "Admit students with one click." },
 ];
+=======
+const WRAP = "max-w-7xl mx-auto px-6 lg:px-10";
+>>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
 
 // ─── Hero ────────────────────────────────────────────────
 function Hero({ view }) {
@@ -90,13 +94,21 @@ function Hero({ view }) {
 
             <div className="flex gap-5 mt-10">
               <Link
+<<<<<<< HEAD
                 to={isStudent ? "/register" : "/admin-login"}
+=======
+                to="/register"
+>>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
                 className="bg-accent text-white px-8 py-4 rounded-full font-semibold hover:bg-accent-dark transition"
               >
                 {isStudent ? "Start Applying" : "Admin Login"}
               </Link>
               <Link
+<<<<<<< HEAD
                 to={isStudent ? "/login" : "/admin-login"}
+=======
+                to="/for-institutions"
+>>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
                 className="border px-8 py-4 rounded-full font-semibold hover:bg-gray-50 transition"
               >
                 {isStudent ? "Browse Institutions" : "Learn More"}
@@ -113,9 +125,51 @@ function Hero({ view }) {
   );
 }
 
+<<<<<<< HEAD
 // ─── Stats Bar ────────────────────────────────────────────
 function StatsBar({ view, totalCount }) {
   const stats = view === "student" ? STUDENT_STATS(totalCount) : ADMIN_STATS(totalCount);
+=======
+function PortalSwitcher() {
+  return (
+    <section className="py-12 bg-white">
+      <div className={WRAP}>
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          {/* Student Portal Card */}
+          <div className="p-8 border border-gray-100 rounded-2xl bg-white shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-bold text-navy">Student Portal</h3>
+            <p className="text-sm text-gray-500 mt-2">
+              Browse university courses, apply online, and upload your documents.
+            </p>
+            <Link
+              to="/login"
+              className="inline-block mt-5 bg-accent text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-accent-dark transition"
+            >
+              Enter Student Console
+            </Link>
+          </div>
+
+          {/* Admin Portal Card */}
+          <div className="p-8 border border-gray-100 rounded-2xl bg-[#FFF3EA] shadow-sm hover:shadow-md transition">
+            <h3 className="text-xl font-bold text-navy">Institution Admin</h3>
+            <p className="text-sm text-gray-500 mt-2">
+              Manage courses, build application forms, and review student applications.
+            </p>
+            <Link
+              to="/for-institutions"
+              className="inline-block mt-5 border-2 border-accent text-accent px-6 py-2 rounded-full text-sm font-semibold hover:bg-accent/5 transition"
+            >
+              Enter Admin Portal
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function StatsBar() {
+>>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
   return (
     <section className="bg-[#FFF3EA] py-12">
       <div className={WRAP}>
@@ -296,11 +350,20 @@ export default function Landing() {
     <div className="bg-white text-navy overflow-x-hidden">
       <PublicNav view={view} setView={setView} />
       <main>
+<<<<<<< HEAD
         <Hero view={view} />
         <StatsBar view={view} totalCount={totalCount} />
         <InstitutionHighlights institutions={institutions} status={status} view={view} />
         <HowItWorks view={view} />
         <CtaBand view={view} />
+=======
+        <Hero />
+        <PortalSwitcher />
+        <StatsBar />
+        <InstitutionHighlights institutions={institutions} status={status} />
+        <HowItWorks />
+        <CtaBand />
+>>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
       </main>
       <Footer />
     </div>
