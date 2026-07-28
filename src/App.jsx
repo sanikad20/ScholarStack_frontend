@@ -1,6 +1,8 @@
 import { Routes, Route } from "react-router-dom";
 
 // PUBLIC PAGES 
+import ForInstitutions from "./pages/public/ForInstitutions.jsx";
+import RegisterInstitution from "./pages/public/RegisterInstitution.jsx";
 import Landing from "./pages/public/Landing.jsx";
 import Login from "./pages/public/Login.jsx";
 import Register from "./pages/public/Register.jsx";
