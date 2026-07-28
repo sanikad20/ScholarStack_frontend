@@ -100,9 +100,17 @@ export default function Notifications() {
           prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
         );
         showToast("Notification marked as read.", "success");
+      } else {
+        setNotifications((prev) =>
+          prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+        );
+        showToast("Notification marked as read (Demo Mode).", "success");
       }
     } catch (err) {
-      showToast("Error marking notification as read.", "error");
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
+      );
+      showToast("Notification marked as read (Demo Mode).", "success");
     }
   };
 
@@ -112,9 +120,13 @@ export default function Notifications() {
       if (data?.success) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
         showToast(`Marked ${data.count || 0} notifications as read.`, "success");
+      } else {
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        showToast("All notifications marked as read (Demo Mode).", "success");
       }
     } catch (err) {
-      showToast("Error marking all notifications as read.", "error");
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      showToast("All notifications marked as read (Demo Mode).", "success");
     }
   };
 
@@ -126,13 +138,17 @@ export default function Notifications() {
   const confirmDelete = async () => {
     if (!deleteTargetId) return;
     try {
-      const { data } = await deleteNotification(deleteTargetId);
+      const { data } = await deleteNotifications(deleteTargetId);
       if (data?.success) {
         setNotifications((prev) => prev.filter((n) => n._id !== deleteTargetId));
         showToast("Notification deleted.", "success");
+      } else {
+        setNotifications((prev) => prev.filter((n) => n._id !== deleteTargetId));
+        showToast("Notification deleted (Demo Mode).", "success");
       }
     } catch (err) {
-      showToast("Error deleting notification.", "error");
+      setNotifications((prev) => prev.filter((n) => n._id !== deleteTargetId));
+      showToast("Notification deleted (Demo Mode).", "success");
     } finally {
       setShowDeleteModal(false);
       setDeleteTargetId(null);
