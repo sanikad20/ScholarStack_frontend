@@ -44,15 +44,23 @@ const STUDENT_STEPS = [
   { icon: TrendingUp, title: "Track", body: "Receive updates until admission." },
 ];
 
-<<<<<<< HEAD
 const ADMIN_STEPS = [
-  { icon: Settings2, title: "Set Up", body: "Configure courses and admission forms." },
-  { icon: FileCheck, title: "Review", body: "Verify documents and applications." },
-  { icon: Sparkles, title: "Admit", body: "Admit students with one click." },
+  {
+    icon: Settings2,
+    title: "Set Up",
+    body: "Configure courses and admission forms.",
+  },
+  {
+    icon: FileCheck,
+    title: "Review",
+    body: "Verify documents and applications.",
+  },
+  {
+    icon: Sparkles,
+    title: "Admit",
+    body: "Admit students with one click.",
+  },
 ];
-=======
-const WRAP = "max-w-7xl mx-auto px-6 lg:px-10";
->>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
 
 // ─── Hero ────────────────────────────────────────────────
 function Hero({ view }) {
@@ -94,21 +102,13 @@ function Hero({ view }) {
 
             <div className="flex gap-5 mt-10">
               <Link
-<<<<<<< HEAD
-                to={isStudent ? "/register" : "/admin-login"}
-=======
                 to="/register"
->>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
                 className="bg-accent text-white px-8 py-4 rounded-full font-semibold hover:bg-accent-dark transition"
               >
                 {isStudent ? "Start Applying" : "Admin Login"}
               </Link>
               <Link
-<<<<<<< HEAD
-                to={isStudent ? "/login" : "/admin-login"}
-=======
                 to="/for-institutions"
->>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
                 className="border px-8 py-4 rounded-full font-semibold hover:bg-gray-50 transition"
               >
                 {isStudent ? "Browse Institutions" : "Learn More"}
@@ -125,11 +125,6 @@ function Hero({ view }) {
   );
 }
 
-<<<<<<< HEAD
-// ─── Stats Bar ────────────────────────────────────────────
-function StatsBar({ view, totalCount }) {
-  const stats = view === "student" ? STUDENT_STATS(totalCount) : ADMIN_STATS(totalCount);
-=======
 function PortalSwitcher() {
   return (
     <section className="py-12 bg-white">
@@ -168,8 +163,12 @@ function PortalSwitcher() {
   );
 }
 
-function StatsBar() {
->>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
+function StatsBar({ view, totalCount }) {
+  const stats =
+    view === "student"
+      ? STUDENT_STATS(totalCount)
+      : ADMIN_STATS(totalCount);
+
   return (
     <section className="bg-[#FFF3EA] py-12">
       <div className={WRAP}>
@@ -350,20 +349,12 @@ export default function Landing() {
     <div className="bg-white text-navy overflow-x-hidden">
       <PublicNav view={view} setView={setView} />
       <main>
-<<<<<<< HEAD
         <Hero view={view} />
+        <PortalSwitcher />
         <StatsBar view={view} totalCount={totalCount} />
         <InstitutionHighlights institutions={institutions} status={status} view={view} />
         <HowItWorks view={view} />
         <CtaBand view={view} />
-=======
-        <Hero />
-        <PortalSwitcher />
-        <StatsBar />
-        <InstitutionHighlights institutions={institutions} status={status} />
-        <HowItWorks />
-        <CtaBand />
->>>>>>> 1c668be1afd75b92dc77d8e011e25b5211968004
       </main>
       <Footer />
     </div>

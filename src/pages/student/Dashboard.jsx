@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Check,
@@ -19,30 +19,38 @@ import {
   Star,
   Sparkles,
   ChevronRight,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import StudentTopbar from "../../components/layout/StudentTopbar";
 import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
+import api from "../../api/axios";
 
 /* =========================================================================
    ScholarStack — Student Dashboard (My Applications)
-   Premium SaaS redesign inspired by Coursera / Notion / Linear / Stripe.
    Content area only — top navbar & sidebar are untouched.
+
+   Backend contract — GET /api/dashboard/student returns:
+     {
+       success: true,
+       data: {
+         student: { name, email, currentSession, profileCompletion },
+         stats: [...],
+         activeApplication: {...},
+         applications: [...],
+         notifications: [...],
+         deadlines: [...],
+         recommendedCourses: [...]
+       }
+     }
+   This matches the current getStudentDashboard() controller. No client-side
+   transformation needed — sections are used directly from the response.
    ========================================================================= */
 
-/* ------------------------------ Dummy data ------------------------------ */
-// Swap for useApplications() -> GET /api/applications/my once wired.
-
-const STUDENT_NAME = "Ananya";
-const CURRENT_SESSION = "Fall 2026";
-const PROFILE_COMPLETION = 92;
-
-const STATS = [
-  { key: "submitted", label: "Applications Submitted", value: 3, icon: FileText, accent: "#FF6B3D" },
-  { key: "pending", label: "Pending Review", value: 2, icon: Clock, accent: "#F59E0B" },
-  { key: "verified", label: "Verified", value: 1, icon: ShieldCheck, accent: "#10B981" },
-  { key: "offers", label: "Offers Received", value: 1, icon: Award, accent: "#6366F1" },
-];
+/* ------------------------------ UI config -------------------------------- */
+// Presentation-only configs (labels, colors, ordering) — not per-student
+// data — so they stay local rather than coming from the API.
 
 const WORKFLOW_STEPS = [
   { value: "draft", label: "Draft" },
@@ -76,59 +84,6 @@ const STATUS_BADGE = {
   rejected: "bg-[#FEF2F2] text-[#DC2626]",
 };
 
-const DUMMY_ACTIVE_APPLICATION = {
-  code: "SS-04821",
-  institution: "MIT OpenLearn",
-  institutionColor: "#0F172A",
-  courseName: "B.Tech Computer Science",
-  status: "faculty_review",
-  estProcessing: "5–7 business days",
-  lastUpdated: "2 hours ago",
-};
-
-const DUMMY_APPLICATIONS = [
-  {
-    id: 1,
-    institution: "MIT OpenLearn",
-    institutionColor: "#0F172A",
-    course: "The Python Mega Course: Build 10 Real World Applications",
-    code: "SS-04821",
-    session: "Fall 2026",
-    submitted: "Jun 30, 2026",
-    stage: "faculty_review",
-    deadline: "Aug 15, 2026",
-  },
-  {
-    id: 2,
-    institution: "Stanford Online",
-    institutionColor: "#8C1515",
-    course: "Applied Machine Learning & Deep Learning",
-    code: "SS-04822",
-    session: "Fall 2026",
-    submitted: "Jun 28, 2026",
-    stage: "verification",
-    deadline: "Aug 10, 2026",
-  },
-  {
-    id: 3,
-    institution: "Wharton Executive",
-    institutionColor: "#065F46",
-    course: "Product Management Fundamentals",
-    code: "SS-04823",
-    session: "Fall 2026",
-    submitted: "Jun 20, 2026",
-    stage: "offer",
-    deadline: "Jul 30, 2026",
-  },
-];
-
-const NOTIFICATIONS = [
-  { id: 1, title: "Document Verified", detail: "Your transcript for SS-04822 has been verified.", time: "2h ago", tone: "success" },
-  { id: 2, title: "Application moved to Review", detail: "SS-04821 is now with the faculty panel.", time: "1d ago", tone: "info" },
-  { id: 3, title: "Interview Scheduled", detail: "MIT OpenLearn scheduled your interview for Jul 12.", time: "2d ago", tone: "warning" },
-  { id: 4, title: "Admission Approved", detail: "Congratulations! Wharton Executive sent an offer letter.", time: "4d ago", tone: "success" },
-];
-
 const NOTIF_DOT = {
   success: "#10B981",
   info: "#2563EB",
@@ -136,20 +91,32 @@ const NOTIF_DOT = {
   danger: "#EF4444",
 };
 
-const DEADLINES = [
-  { id: 1, label: "Application closes in", value: "5 Days", detail: "MIT OpenLearn · B.Tech CS", icon: CalendarClock, tone: "#EF4444" },
-  { id: 2, label: "Upload Documents", value: "Tomorrow", detail: "Stanford Online · verification pending", icon: Upload, tone: "#F59E0B" },
-  { id: 3, label: "Interview", value: "Jul 12", detail: "MIT OpenLearn · panel round", icon: PlayCircle, tone: "#6366F1" },
-  { id: 4, label: "Payment Deadline", value: "Jul 15", detail: "Wharton Executive · seat confirmation", icon: FileText, tone: "#10B981" },
-];
+// Maps an icon "name" string coming from the API (e.g. "FileText") to the
+// actual lucide-react component, with a safe fallback.
+const ICON_MAP = {
+  FileText,
+  Clock,
+  ShieldCheck,
+  Award,
+  Upload,
+  XCircle,
+  PlayCircle,
+  Compass,
+  Download,
+  FolderOpen,
+  Mail,
+  Bell,
+  CalendarClock,
+  Star,
+  Sparkles,
+  ChevronRight,
+  ArrowRight,
+  Check,
+};
 
-const RECOMMENDED_COURSES = [
-  { id: 11, title: "Data Structures & Algorithms Mastery", institution: "IIT Delhi", color: "#B91C1C", duration: "8 weeks", rating: 4.8, imgSeed: "reco-1" },
-  { id: 12, title: "Cloud Architecture on AWS & Azure", institution: "Imperial College", color: "#1D4ED8", duration: "6 weeks", rating: 4.7, imgSeed: "reco-2" },
-  { id: 13, title: "UI/UX Design: Wireframe to Prototype", institution: "National Design Inst.", color: "#7C3AED", duration: "6 weeks", rating: 4.9, imgSeed: "reco-3" },
-  { id: 14, title: "Business Analytics with Python & SQL", institution: "Wharton Executive", color: "#065F46", duration: "12 weeks", rating: 4.6, imgSeed: "reco-4" },
-  { id: 15, title: "Digital Marketing & Growth Strategy", institution: "Stanford Online", color: "#8C1515", duration: "4 weeks", rating: 4.5, imgSeed: "reco-5" },
-];
+function resolveIcon(name, fallback = FileText) {
+  return ICON_MAP[name] || fallback;
+}
 
 /* --------------------------------- Utils -------------------------------- */
 function classNames(...c) {
@@ -213,10 +180,11 @@ function AnimatedCounter({ value, duration = 900 }) {
     let raf;
     const start = performance.now();
     const from = 0;
+    const target = Number(value) || 0;
     const tick = (now) => {
       const p = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(Math.round(from + (value - from) * eased));
+      setDisplay(Math.round(from + (target - from) * eased));
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -266,8 +234,9 @@ function AppCardSkeleton() {
 
 /* ---------------------------------- Bits ---------------------------------- */
 function InstitutionAvatar({ name, color, size = 40 }) {
-  const initials = name
+  const initials = (name || "")
     .split(" ")
+    .filter(Boolean)
     .map((w) => w[0])
     .slice(0, 2)
     .join("")
@@ -275,23 +244,33 @@ function InstitutionAvatar({ name, color, size = 40 }) {
   return (
     <div
       className="flex items-center justify-center rounded-xl text-[12px] font-bold text-white shrink-0 shadow-sm"
-      style={{ width: size, height: size, background: color }}
+      style={{ width: size, height: size, background: color || "#0F172A" }}
     >
-      {initials}
+      {initials || "?"}
     </div>
   );
 }
 
 function StatusBadge({ status }) {
+  if (!status) return null;
   return (
-    <span className={classNames("inline-flex items-center px-3 py-1.5 rounded-full text-[11.5px] font-semibold", STATUS_BADGE[status])}>
-      {STATUS_LABEL[status]}
+    <span
+      className={classNames(
+        "inline-flex items-center px-3 py-1.5 rounded-full text-[11.5px] font-semibold",
+        STATUS_BADGE[status] || "bg-[#F1F5F9] text-[#64748B]"
+      )}
+    >
+      {STATUS_LABEL[status] || status}
     </span>
   );
 }
 
 /* --------------------------------- Hero ------------------------------------ */
-function HeroHeader() {
+function HeroHeader({ student }) {
+  const name = student?.name || "there";
+  const session = student?.currentSession;
+  const completion = Number(student?.profileCompletion) || 0;
+
   return (
     <section
       className="ss-fade-in relative overflow-hidden rounded-2xl border border-[#E5E7EB] p-8 md:p-10"
@@ -305,7 +284,7 @@ function HeroHeader() {
       <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl md:text-[32px] font-extrabold text-[#0F172A] tracking-tight">
-            Welcome back, {STUDENT_NAME} <span className="align-middle">👋</span>
+            Welcome back, {name} <span className="align-middle">👋</span>
           </h1>
           <p className="mt-2 text-[15px] text-[#64748B] max-w-lg leading-relaxed">
             Track your applications, monitor admission progress, and stay updated with important notifications.
@@ -315,16 +294,16 @@ function HeroHeader() {
         <div className="flex items-center gap-6 lg:gap-8">
           <div className="text-right">
             <p className="text-[11.5px] font-medium text-[#64748B] uppercase tracking-wide">Current Session</p>
-            <p className="mt-0.5 text-[15px] font-bold text-[#0F172A]">{CURRENT_SESSION}</p>
+            <p className="mt-0.5 text-[15px] font-bold text-[#0F172A]">{session || "—"}</p>
           </div>
           <div className="h-9 w-px bg-[#E5E7EB]" />
           <div className="text-right">
             <p className="text-[11.5px] font-medium text-[#64748B] uppercase tracking-wide">Profile Completion</p>
             <div className="mt-1 flex items-center gap-2 justify-end">
               <div className="w-20 h-1.5 rounded-full bg-[#E5E7EB] overflow-hidden">
-                <div className="h-full rounded-full bg-[#FF6B3D] transition-all duration-700" style={{ width: `${PROFILE_COMPLETION}%` }} />
+                <div className="h-full rounded-full bg-[#FF6B3D] transition-all duration-700" style={{ width: `${completion}%` }} />
               </div>
-              <span className="text-[13px] font-bold text-[#0F172A]">{PROFILE_COMPLETION}%</span>
+              <span className="text-[13px] font-bold text-[#0F172A]">{completion}%</span>
             </div>
           </div>
           <Link to="/student/courses">
@@ -343,17 +322,20 @@ function HeroHeader() {
 
 /* ------------------------------- Stat cards -------------------------------- */
 function StatCard({ stat, index }) {
-  const Icon = stat.icon;
+  const Icon = resolveIcon(stat.icon);
   return (
     <div
       className="ss-card-in group relative bg-white rounded-2xl border border-[#E5E7EB] p-6 overflow-hidden
                  transition-all duration-[250ms] ease-out hover:-translate-y-1 hover:shadow-[0_16px_32px_-12px_rgba(15,23,42,0.15)]"
       style={{ animationDelay: `${index * 70}ms` }}
     >
-      <div className="absolute left-0 top-0 h-full w-1 rounded-l-2xl transition-all duration-300 group-hover:w-1.5" style={{ background: stat.accent }} />
+      <div
+        className="absolute left-0 top-0 h-full w-1 rounded-l-2xl transition-all duration-300 group-hover:w-1.5"
+        style={{ background: stat.accent || "#FF6B3D" }}
+      />
       <div
         className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
-        style={{ background: `${stat.accent}18`, color: stat.accent }}
+        style={{ background: `${stat.accent || "#FF6B3D"}18`, color: stat.accent || "#FF6B3D" }}
       >
         <Icon size={20} />
       </div>
@@ -367,6 +349,7 @@ function StatCard({ stat, index }) {
 
 /* ------------------------------ Progress timeline --------------------------- */
 function ApplicationProgress({ app }) {
+  if (!app || !app.status) return null;
   const currentIndex = WORKFLOW_STEPS.findIndex((s) => s.value === app.status);
 
   return (
@@ -432,11 +415,11 @@ function ApplicationProgress({ app }) {
           </div>
           <div>
             <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wide mb-1">Est. Processing Time</p>
-            <p className="text-[13.5px] font-semibold text-[#0F172A]">{app.estProcessing}</p>
+            <p className="text-[13.5px] font-semibold text-[#0F172A]">{app.estProcessing || "—"}</p>
           </div>
           <div>
             <p className="text-[11px] font-medium text-[#64748B] uppercase tracking-wide mb-1">Last Updated</p>
-            <p className="text-[13.5px] font-semibold text-[#0F172A]">{app.lastUpdated}</p>
+            <p className="text-[13.5px] font-semibold text-[#0F172A]">{app.lastUpdated || "—"}</p>
           </div>
         </div>
       </div>
@@ -464,10 +447,10 @@ function ApplicationCard({ app, index }) {
       </div>
 
       <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[12.5px] text-[#64748B] mb-5">
-        <div><span className="text-[#94A3B8]">App No.</span> <span className="font-medium text-[#0F172A]">{app.code}</span></div>
-        <div><span className="text-[#94A3B8]">Session</span> <span className="font-medium text-[#0F172A]">{app.session}</span></div>
-        <div><span className="text-[#94A3B8]">Submitted</span> <span className="font-medium text-[#0F172A]">{app.submitted}</span></div>
-        <div><span className="text-[#94A3B8]">Deadline</span> <span className="font-medium text-[#DC2626]">{app.deadline}</span></div>
+        <div><span className="text-[#94A3B8]">App No.</span> <span className="font-medium text-[#0F172A]">{app.code || "—"}</span></div>
+        <div><span className="text-[#94A3B8]">Session</span> <span className="font-medium text-[#0F172A]">{app.session || "—"}</span></div>
+        <div><span className="text-[#94A3B8]">Submitted</span> <span className="font-medium text-[#0F172A]">{app.submitted || "—"}</span></div>
+        <div><span className="text-[#94A3B8]">Deadline</span> <span className="font-medium text-[#DC2626]">{app.deadline || "—"}</span></div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -529,7 +512,8 @@ function QuickActions() {
 }
 
 /* ------------------------------ Notifications ------------------------------ */
-function NotificationsWidget() {
+function NotificationsWidget({ notifications }) {
+  const hasNotifications = notifications?.length > 0;
   return (
     <div className="ss-card-in bg-white rounded-2xl border border-[#E5E7EB] p-5">
       <div className="flex items-center justify-between mb-4">
@@ -537,60 +521,71 @@ function NotificationsWidget() {
           <Bell size={15} className="text-[#FF6B3D]" /> Recent Updates
         </h3>
       </div>
-      <div className="flex flex-col gap-1">
-        {NOTIFICATIONS.map((n) => (
-          <button
-            key={n.id}
-            className="w-full text-left flex gap-3 px-3 py-2.5 rounded-xl hover:bg-[#F8FAFC] transition-all duration-200"
-          >
-            <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: NOTIF_DOT[n.tone] }} />
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-[#0F172A]">{n.title}</p>
-              <p className="text-[12px] text-[#64748B] ss-line-clamp-2">{n.detail}</p>
-              <p className="text-[11px] text-[#94A3B8] mt-0.5">{n.time}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+      {hasNotifications ? (
+        <div className="flex flex-col gap-1">
+          {notifications.map((n) => (
+            <button
+              key={n.id}
+              className="w-full text-left flex gap-3 px-3 py-2.5 rounded-xl hover:bg-[#F8FAFC] transition-all duration-200"
+            >
+              <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: NOTIF_DOT[n.tone] || "#94A3B8" }} />
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-[#0F172A]">{n.title}</p>
+                <p className="text-[12px] text-[#64748B] ss-line-clamp-2">{n.detail}</p>
+                {n.time && <p className="text-[11px] text-[#94A3B8] mt-0.5">{n.time}</p>}
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[12.5px] text-[#94A3B8] py-4 text-center">No recent updates yet.</p>
+      )}
     </div>
   );
 }
 
 /* ----------------------------- Upcoming deadlines --------------------------- */
-function DeadlinesWidget() {
+function DeadlinesWidget({ deadlines }) {
+  const hasDeadlines = deadlines?.length > 0;
   return (
     <div className="ss-card-in bg-white rounded-2xl border border-[#E5E7EB] p-5">
       <h3 className="text-[14px] font-bold text-[#0F172A] mb-4 flex items-center gap-2">
         <CalendarClock size={15} className="text-[#FF6B3D]" /> Upcoming Deadlines
       </h3>
-      <div className="flex flex-col gap-3">
-        {DEADLINES.map((d) => {
-          const Icon = d.icon;
-          return (
-            <div key={d.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[#F1F5F9] hover:border-[#E5E7EB] transition-colors duration-200">
-              <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${d.tone}18`, color: d.tone }}>
-                <Icon size={15} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11.5px] text-[#64748B]">{d.label}</p>
-                <p className="text-[13px] font-bold text-[#0F172A]">{d.value}</p>
+      {hasDeadlines ? (
+        <div className="flex flex-col gap-3">
+          {deadlines.map((d) => {
+            const Icon = resolveIcon(d.icon, CalendarClock);
+            return (
+              <div key={d.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[#F1F5F9] hover:border-[#E5E7EB] transition-colors duration-200">
+                <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${d.tone || "#FF6B3D"}18`, color: d.tone || "#FF6B3D" }}>
+                  <Icon size={15} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11.5px] text-[#64748B]">{d.label}</p>
+                  <p className="text-[13px] font-bold text-[#0F172A]">{d.value}</p>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-[12.5px] text-[#94A3B8] py-4 text-center">No upcoming deadlines.</p>
+      )}
     </div>
   );
 }
 
 /* ---------------------------- Recommended courses --------------------------- */
-function RecommendedCourses() {
+function RecommendedCourses({ courses }) {
   const scrollerRef = useRef(null);
   const scrollBy = (dir) => {
     const el = scrollerRef.current;
     if (!el) return;
     el.scrollBy({ left: dir * el.clientWidth * 0.9, behavior: "smooth" });
   };
+
+  if (!courses?.length) return null;
 
   return (
     <section className="mt-2">
@@ -612,7 +607,7 @@ function RecommendedCourses() {
       </div>
 
       <div ref={scrollerRef} className="ss-scroll-row flex gap-5 overflow-x-auto pb-2 -mx-1 px-1">
-        {RECOMMENDED_COURSES.map((c, i) => (
+        {courses.map((c, i) => (
           <div
             key={c.id}
             className="ss-card-in group min-w-[270px] max-w-[270px] bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden
@@ -621,7 +616,7 @@ function RecommendedCourses() {
           >
             <div className="relative overflow-hidden aspect-video">
               <img
-                src={`https://picsum.photos/seed/${c.imgSeed}/400/225`}
+                src={c.imageUrl || `https://picsum.photos/seed/${c.imgSeed || c.id}/400/225`}
                 alt={c.title}
                 className="w-full h-full object-cover transition-transform duration-[250ms] ease-out group-hover:scale-[1.06]"
                 loading="lazy"
@@ -638,7 +633,7 @@ function RecommendedCourses() {
               <div className="mt-2.5 flex items-center justify-between text-[12px] text-[#64748B]">
                 <span>{c.duration}</span>
                 <span className="inline-flex items-center gap-1 font-semibold text-[#0F172A]">
-                  <Star size={12} fill="#FF6B3D" className="text-[#FF6B3D]" /> {c.rating}
+                  <Star size={12} fill="#FF6B3D" className="text-[#FF6B3D]" /> {c.rating ?? "—"}
                 </span>
               </div>
               <button className="mt-3 w-full py-2 rounded-full bg-[#FF6B3D] text-white text-[12.5px] font-semibold hover:bg-[#F55A2A] transition-all duration-200 active:scale-[0.97]">
@@ -677,15 +672,79 @@ function EmptyState() {
   );
 }
 
+/* --------------------------------- Error state ------------------------------ */
+function ErrorState({ message, onRetry }) {
+  return (
+    <div className="ss-fade-in flex flex-col items-center text-center py-20 bg-white rounded-2xl border border-[#E5E7EB]">
+      <div className="w-14 h-14 rounded-full bg-[#FEF2F2] flex items-center justify-center">
+        <AlertTriangle size={22} className="text-[#DC2626]" />
+      </div>
+      <h3 className="mt-5 text-lg font-bold text-[#0F172A]">Couldn't load your dashboard</h3>
+      <p className="mt-1.5 text-sm text-[#64748B] max-w-sm">
+        {message || "Something went wrong while fetching your data. Please try again."}
+      </p>
+      <RippleButton
+        onClick={onRetry}
+        className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#FF6B3D] text-white text-[13px] font-semibold hover:bg-[#F55A2A] transition-all duration-[250ms] active:scale-[0.97]"
+      >
+        <RefreshCw size={14} /> Try Again
+      </RippleButton>
+    </div>
+  );
+}
+
 /* --------------------------------- Page ------------------------------------ */
 export default function Dashboard() {
+  const [student, setStudent] = useState(null);
+  const [stats, setStats] = useState([]);
+  const [activeApplication, setActiveApplication] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [deadlines, setDeadlines] = useState([]);
+  const [recommendedCourses, setRecommendedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const hasApplications = DUMMY_APPLICATIONS.length > 0;
+  const [error, setError] = useState(null);
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get("/dashboard/student");
+      const payload = res?.data?.data;
+
+      if (!res?.data?.success || !payload || Array.isArray(payload)) {
+        throw new Error("Malformed dashboard response");
+      }
+
+      setStudent(payload.student ?? null);
+      setStats(Array.isArray(payload.stats) ? payload.stats : []);
+      // activeApplication comes back as {} (not null) when there's none —
+      // normalize the empty-object case so ApplicationProgress can bail out.
+      setActiveApplication(
+        payload.activeApplication && Object.keys(payload.activeApplication).length > 0
+          ? payload.activeApplication
+          : null
+      );
+      setApplications(Array.isArray(payload.applications) ? payload.applications : []);
+      setNotifications(Array.isArray(payload.notifications) ? payload.notifications : []);
+      setDeadlines(Array.isArray(payload.deadlines) ? payload.deadlines : []);
+      setRecommendedCourses(Array.isArray(payload.recommendedCourses) ? payload.recommendedCourses : []);
+    } catch (err) {
+      console.error("Dashboard fetch failed:", err);
+      setError(
+        err?.response?.data?.message ||
+          "We couldn't load your dashboard right now. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 900);
-    return () => clearTimeout(t);
-  }, []);
+    fetchDashboard();
+  }, [fetchDashboard]);
+
+  const hasApplications = applications?.length > 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-[#0F172A] pb-20 lg:pb-0">
@@ -696,80 +755,92 @@ export default function Dashboard() {
         <StudentSidebar />
 
         <main className="flex-1 px-8 py-10 bg-[#F8FAFC]/40">
-          {/* Hero */}
-          {loading ? <HeroSkeleton /> : <HeroHeader />}
-
-          {/* Stats */}
-          <div className="mt-6">
-            {loading ? (
-              <StatsSkeleton />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {STATS.map((s, i) => (
-                  <StatCard key={s.key} stat={s} index={i} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {!loading && !hasApplications ? (
-            <div className="mt-8">
-              <EmptyState />
-            </div>
+          {error ? (
+            <ErrorState message={error} onRetry={fetchDashboard} />
           ) : (
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Main column */}
-              <div className="lg:col-span-2 flex flex-col gap-8">
-                {/* Progress timeline */}
+            <>
+              {/* Hero */}
+              {loading ? <HeroSkeleton /> : <HeroHeader student={student} />}
+
+              {/* Stats */}
+              <div className="mt-6">
                 {loading ? (
-                  <div className="rounded-2xl border border-[#E5E7EB] p-8">
-                    <div className="ss-shimmer h-4 w-64 rounded-md mb-8" />
-                    <div className="ss-shimmer h-10 w-full rounded-md" />
-                  </div>
+                  <StatsSkeleton />
                 ) : (
-                  <ApplicationProgress app={DUMMY_ACTIVE_APPLICATION} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {stats?.length > 0
+                      ? stats.map((s, i) => <StatCard key={s.key ?? i} stat={s} index={i} />)
+                      : (
+                        <p className="col-span-full text-[12.5px] text-[#94A3B8] py-4 text-center">
+                          No stats available yet.
+                        </p>
+                      )}
+                  </div>
                 )}
-
-                {/* Applications */}
-                <section>
-                  <div className="flex items-end justify-between mb-5">
-                    <div>
-                      <h2 className="text-lg font-bold text-[#0F172A]">My Applications</h2>
-                      <p className="mt-1 text-[13px] text-[#64748B]">{DUMMY_APPLICATIONS.length} applications this session</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                    {loading
-                      ? Array.from({ length: 4 }).map((_, i) => <AppCardSkeleton key={i} />)
-                      : DUMMY_APPLICATIONS.map((app, i) => <ApplicationCard key={app.id} app={app} index={i} />)}
-                  </div>
-                </section>
-
-                {!loading && <RecommendedCourses />}
               </div>
 
-              {/* Sticky right column */}
-              <aside className="lg:col-span-1">
-                <div className="flex flex-col gap-6 lg:sticky lg:top-8">
-                  {loading ? (
-                    <>
-                      <div className="rounded-2xl border border-[#E5E7EB] p-5">
-                        <div className="ss-shimmer h-4 w-32 rounded-md mb-4" />
-                        <div className="ss-shimmer h-9 w-full rounded-xl mb-2" />
-                        <div className="ss-shimmer h-9 w-full rounded-xl mb-2" />
-                        <div className="ss-shimmer h-9 w-full rounded-xl" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <QuickActions />
-                      <NotificationsWidget />
-                      <DeadlinesWidget />
-                    </>
-                  )}
+              {!loading && !hasApplications ? (
+                <div className="mt-8">
+                  <EmptyState />
                 </div>
-              </aside>
-            </div>
+              ) : (
+                <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Main column */}
+                  <div className="lg:col-span-2 flex flex-col gap-8">
+                    {/* Progress timeline */}
+                    {loading ? (
+                      <div className="rounded-2xl border border-[#E5E7EB] p-8">
+                        <div className="ss-shimmer h-4 w-64 rounded-md mb-8" />
+                        <div className="ss-shimmer h-10 w-full rounded-md" />
+                      </div>
+                    ) : (
+                      <ApplicationProgress app={activeApplication} />
+                    )}
+
+                    {/* Applications */}
+                    <section>
+                      <div className="flex items-end justify-between mb-5">
+                        <div>
+                          <h2 className="text-lg font-bold text-[#0F172A]">My Applications</h2>
+                          <p className="mt-1 text-[13px] text-[#64748B]">
+                            {applications?.length ?? 0} applications this session
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                        {loading
+                          ? Array.from({ length: 4 }).map((_, i) => <AppCardSkeleton key={i} />)
+                          : applications.map((app, i) => <ApplicationCard key={app.id ?? i} app={app} index={i} />)}
+                      </div>
+                    </section>
+
+                    {!loading && <RecommendedCourses courses={recommendedCourses} />}
+                  </div>
+
+                  {/* Sticky right column */}
+                  <aside className="lg:col-span-1">
+                    <div className="flex flex-col gap-6 lg:sticky lg:top-8">
+                      {loading ? (
+                        <>
+                          <div className="rounded-2xl border border-[#E5E7EB] p-5">
+                            <div className="ss-shimmer h-4 w-32 rounded-md mb-4" />
+                            <div className="ss-shimmer h-9 w-full rounded-xl mb-2" />
+                            <div className="ss-shimmer h-9 w-full rounded-xl mb-2" />
+                            <div className="ss-shimmer h-9 w-full rounded-xl" />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <QuickActions />
+                          <NotificationsWidget notifications={notifications} />
+                          <DeadlinesWidget deadlines={deadlines} />
+                        </>
+                      )}
+                    </div>
+                  </aside>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
