@@ -27,6 +27,7 @@ import {
   deleteApplication,
   getApplicationTimeline,
   getWorkflowStatuses,
+  generateAiMessage, // Import the AI generator API call
 } from "../../api/applications.api";
 import { getDocuments, updateDocumentStatus } from "../../api/documents.api";
 import { classifySingleApplication } from "../../api/classifications.api";
@@ -152,6 +153,13 @@ export default function ApplicationDetail() {
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // ─── AI Assist States ───────────────────────────────
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiEmailSubject, setAiEmailSubject] = useState("");
+  const [aiEmailMessage, setAiEmailMessage] = useState("");
+  const [aiNotification, setAiNotification] = useState("");
+
   // ─── Confirmation Modal State ──────────────────────
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'classify' | 'delete'
@@ -229,7 +237,7 @@ export default function ApplicationDetail() {
 
   // ─── Status Update ──────────────────────────────────
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSaving(true);
     try {
       const res = await updateApplicationStatus(id, { status, remarks });
@@ -242,6 +250,52 @@ export default function ApplicationDetail() {
       }
     } catch (err) {
       showToast(err.response?.data?.message ?? "Error updating status.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── AI Assist Handlers ─────────────────────────────
+  const handleAiGenerate = async () => {
+    setGeneratingAi(true);
+    setIsAiModalOpen(true);
+    try {
+      const res = await generateAiMessage(id, { status, remarks });
+      if (res.data?.success && res.data?.data) {
+        const { emailSubject, emailMessage, notificationMessage } = res.data.data;
+        setAiEmailSubject(emailSubject);
+        setAiEmailMessage(emailMessage);
+        setAiNotification(notificationMessage);
+      } else {
+        showToast("Failed to generate AI content.", "error");
+      }
+    } catch (err) {
+      showToast("Failed to connect to the generator service.", "error");
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
+
+  const handleSaveWithAi = async () => {
+    setSaving(true);
+    try {
+      const res = await updateApplicationStatus(id, {
+        status,
+        remarks,
+        customEmailSubject: aiEmailSubject,
+        customEmailMessage: aiEmailMessage,
+        customNotificationMessage: aiNotification,
+      });
+      if (res.data?.success) {
+        setApplication(res.data.data);
+        showToast("Status updated and custom notifications sent!", "success");
+        setIsAiModalOpen(false);
+        fetchData(); // Refresh timeline
+      } else {
+        showToast("Failed to update status.", "error");
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message ?? "Error updating status with AI message.", "error");
     } finally {
       setSaving(false);
     }
@@ -631,7 +685,7 @@ export default function ApplicationDetail() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                          <FileText size={16} />
+                           <FileText size={16} />
                         </div>
                         <div>
                           <span className="block font-semibold text-navy text-sm">{doc.name}</span>
@@ -660,7 +714,7 @@ export default function ApplicationDetail() {
 
             {/* ─── RIGHT COLUMN ────────────────────────── */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Status Update */}
+              {/* Status Update Form */}
               <div className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
                 <h2 className="text-lg font-bold text-navy mb-6 text-center">Update Status</h2>
                 <form onSubmit={handleSave} className="space-y-5">
@@ -691,13 +745,24 @@ export default function ApplicationDetail() {
                       className="w-full h-24 rounded-lg border border-gray-200 p-4 text-sm bg-white outline-none focus:border-accent resize-none transition"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full py-3 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition disabled:opacity-60"
-                  >
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
+
+                  {/* Integrated AI Assist Option */}
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex-1 py-3 rounded-lg bg-gray-800 text-white hover:bg-gray-900 text-sm font-bold transition disabled:opacity-60"
+                    >
+                      {saving ? "Saving..." : "Save Status"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAiGenerate}
+                      className="flex-1 py-3 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition flex items-center justify-center gap-1"
+                    >
+                      ✨ AI Write Message
+                    </button>
+                  </div>
                 </form>
               </div>
 
@@ -821,6 +886,73 @@ export default function ApplicationDetail() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* ─── AI Notification Preview Modal ──────────────── */}
+      <Modal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        title="✨ AI Assist: Personalize Notification"
+        maxWidth="max-w-2xl"
+      >
+        {generatingAi ? (
+          <div className="py-12 text-center space-y-3">
+            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm font-semibold text-navySoft">Writing custom notifications with AI...</p>
+          </div>
+        ) : (
+          <div className="space-y-4 mt-2">
+            <p className="text-xs text-gray-500">
+              Gemini has drafted personalized notifications for <strong>{application?.applicantId?.name}</strong> regarding the course <strong>{application?.courseId?.name}</strong>. Feel free to edit below:
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Email Subject</label>
+              <input
+                type="text"
+                value={aiEmailSubject}
+                onChange={(e) => setAiEmailSubject(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none text-navy focus:border-accent font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Email Message</label>
+              <textarea
+                value={aiEmailMessage}
+                onChange={(e) => setAiEmailMessage(e.target.value)}
+                className="w-full h-48 border border-gray-200 rounded-lg p-4 text-sm outline-none text-navy focus:border-accent resize-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">In-App Notification</label>
+              <textarea
+                value={aiNotification}
+                onChange={(e) => setAiNotification(e.target.value)}
+                className="w-full h-20 border border-gray-200 rounded-lg p-4 text-sm outline-none text-navy focus:border-accent resize-none font-medium"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleAiGenerate}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-50"
+              >
+                Regenerate
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveWithAi}
+                disabled={saving}
+                className="flex-1 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-bold transition disabled:opacity-60"
+              >
+                {saving ? "Sending..." : "Send Status Update & Messages"}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ─── Toast ────────────────────────────────────── */}
