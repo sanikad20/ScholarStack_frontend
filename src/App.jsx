@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 // PUBLIC PAGES 
-import ForInstitutions from "./pages/public/ForInstitutions.jsx";
+import ForInstitutions from "./pages/public/forInstitutions.jsx";
 import RegisterInstitution from "./pages/public/RegisterInstitution.jsx";
 import Landing from "./pages/public/Landing.jsx";
 import Login from "./pages/public/Login.jsx";
@@ -72,7 +72,7 @@ export default function App() {
       <Route path="/student/apply/:id" element={<ApplicationForm />} />
       <Route path="/student/applications" element={<MyApplications />} />
       <Route path="/student/profile" element={<Profile />} />
-      <Route path="/student/documents" element={<DocumentUpload />} />
+      <Route path="/student/documents/:applicationId" element={<DocumentUpload />} />
 
       {/* INSTITUTION ADMIN ROUTES */}
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
