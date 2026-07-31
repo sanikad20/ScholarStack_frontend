@@ -1,3 +1,10 @@
+/**
+ * Student Registration Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Student account registration portal with client validation, password verification, and instant onboarding.
+ */
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";

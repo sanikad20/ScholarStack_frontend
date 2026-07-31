@@ -1,4 +1,10 @@
-// src/pages/public/Landing.jsx
+/**
+ * ScholarStack Landing Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Public landing page featuring platform overview, institutional showcases, feature highlights, and student portal entry points.
+ */
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {

@@ -6,17 +6,15 @@ import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
 import api from "../../api/axios";
 
-/* =========================================================================
-   ScholarStack — Application Form
-   Wired to the real backend:
-     - GET  /courses/:id                 -> course header (name/session)
-     - GET  /applications/my             -> find an existing draft to resume
-     - POST /applications/draft          -> create a draft if none exists
-     - PUT  /applications/:id/draft      -> save progress
-     - POST /documents/autofill          -> AI-extract fields from a document
-   Course's tenantId isn't populated by GET /courses/:id, so institution
-   name isn't shown here (same limitation as CourseDetail/BrowseCourses).
-   ========================================================================= */
+/**
+ * Student Course Application Form
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Comprehensive student application workflow supporting draft saving and progress continuation.
+ * - Smart AI Auto-Fill Feature: Allows students to upload marksheets/IDs to automatically extract
+ *   and populate applicant details (name, DOB, stream, percentage) using AI document parsing.
+ */
 
 const FORM_KEYS = ["firstName", "lastName", "stream", "dob", "percentage", "category"];
 const DEFAULT_FORM = {
@@ -142,8 +140,46 @@ export default function ApplicationForm() {
 
   const handleContinue = async (e) => {
     e.preventDefault();
-    setSaving("continue");
     setSaveStatus(null);
+
+    // Validate required personal details fields
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setSaveStatus({
+        type: "error",
+        message: "Please enter your full name (first and last name) before continuing.",
+      });
+      return;
+    }
+    if (!form.stream.trim()) {
+      setSaveStatus({
+        type: "error",
+        message: "Please enter your stream before continuing.",
+      });
+      return;
+    }
+    if (!form.dob.trim()) {
+      setSaveStatus({
+        type: "error",
+        message: "Please enter your date of birth (DOB) before continuing.",
+      });
+      return;
+    }
+    if (!form.percentage.trim()) {
+      setSaveStatus({
+        type: "error",
+        message: "Please enter your 12th percentage before continuing.",
+      });
+      return;
+    }
+    if (!form.confirmEligibility || !form.confirmConsent) {
+      setSaveStatus({
+        type: "error",
+        message: "Please read and check both confirmation checkboxes below before continuing.",
+      });
+      return;
+    }
+
+    setSaving("continue");
     try {
       const appId = await persistDraft();
       navigate(`/student/documents/${appId}`);

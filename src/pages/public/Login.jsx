@@ -1,3 +1,10 @@
+/**
+ * Student Login Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Secure student authentication portal with JWT token storage, error feedback, and password toggling.
+ */
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";

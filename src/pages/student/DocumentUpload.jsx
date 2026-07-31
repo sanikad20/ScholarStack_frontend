@@ -14,15 +14,14 @@ import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
 import api from "../../api/axios";
 
-/* =========================================================================
-   ScholarStack — Upload Documents
-   Wired to the real backend:
-     - GET  /applications/:applicationId          -> application + course
-     - GET  /documents/:applicationId              -> uploaded documents
-     - POST /documents/upload (multipart)          -> upload a new document
-   Checklist is derived from Course.requiredDocuments vs. what's uploaded —
-   no fabricated document types.
-   ========================================================================= */
+/**
+ * Student Document Upload Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Document upload management interface with file drag-and-drop, category selection, and real-time document verification status.
+ * - Dynamic checklist validating required documents before final application submission.
+ */
 
 // Matches the Document model's `type` enum exactly.
 const DOCUMENT_TYPES = [
@@ -147,8 +146,19 @@ export default function DocumentUpload() {
   };
 
   const handleSubmitApplication = async () => {
-    setSubmitting(true);
     setSubmitStatus(null);
+
+    // Validate that all required documents for this course have been uploaded
+    const missing = checklist.filter((item) => !item.done);
+    if (missing.length > 0) {
+      setSubmitStatus({
+        type: "error",
+        message: `Please upload all required documents (${missing.map((m) => m.label).join(", ")}) before submitting your application.`,
+      });
+      return;
+    }
+
+    setSubmitting(true);
     try {
       await api.post("/applications", { applicationId });
       navigate("/student/applications");

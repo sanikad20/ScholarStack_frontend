@@ -6,21 +6,35 @@ import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
 import api from "../../api/axios";
 
-/* =========================================================================
-   ScholarStack — Course Detail
-   Wired to the real Course model, which only has:
-     name, description, tenantId (-> Institution), eligibilityCriteria,
-     admissionCapacity, requiredDocuments, session, isActive, createdAt,
-     updatedAt.
-   "Duration" isn't a schema field, so that overview card is replaced with
-   "Documents Required" (a real, derivable count). Everything else maps
-   directly to real fields.
+/**
+ * Student Course Detail Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Comprehensive course overview displaying institution name, seat capacity, academic session, and document requirements.
+ * - Humanized eligibility criteria formatter transforming raw database rule conditions into clear, readable text.
+ */
 
-   ASSUMPTION (no course routes file provided): fetched from
-   GET /courses/:id via the shared axios instance, returning either
-   { success, data: {...} } or the bare course object. Adjust below if your
-   actual route/shape differs.
-   ========================================================================= */
+const COURSE_IMAGES = [
+  "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=600&q=80",
+];
+
+function getCourseImage(course) {
+  if (course?.imageUrl) return course.imageUrl;
+  const str = (course?.id || course?._id || course?.name || "course").toString();
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return COURSE_IMAGES[Math.abs(hash) % COURSE_IMAGES.length];
+}
 
 function formatDate(dateInput) {
   if (!dateInput) return null;
@@ -29,27 +43,62 @@ function formatDate(dateInput) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-// eligibilityCriteria is Schema.Types.Mixed — could be a string, an object
-// of key/value rules, an array, or empty. Render whatever shape it is
-// without assuming a specific structure.
+function formatFieldName(name) {
+  if (!name || typeof name !== "string") return name || "";
+  let s = name
+    .replace(/^twelfth/i, "12th ")
+    .replace(/^tenth/i, "10th ")
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function formatEligibility(criteria) {
   if (criteria === null || criteria === undefined) return "Not specified";
   if (typeof criteria === "string") return criteria.trim() || "Not specified";
+
+  const formatSingle = (item) => {
+    if (item === null || item === undefined) return "";
+    if (typeof item === "string") return item.trim();
+    if (typeof item === "number" || typeof item === "boolean") return String(item);
+    if (typeof item === "object") {
+      // Format structured rule conditions: { field: "twelfthPercentage", operator: ">=", value: 55 }
+      if (item.field !== undefined && (item.value !== undefined || item.operator !== undefined)) {
+        const fieldStr = formatFieldName(item.field);
+        const op = item.operator || "=";
+        const val = item.value !== undefined ? item.value : "";
+        const valSuffix = (typeof val === "number" && /percentage|percent|marks|score/i.test(item.field)) ? "%" : "";
+        return `${fieldStr} ${op} ${val}${valSuffix}`;
+      }
+
+      if (item.label || item.name || item.title || item.text || item.rule || item.description || item.criterion) {
+        return item.label || item.name || item.title || item.text || item.rule || item.description || item.criterion;
+      }
+      const entries = Object.entries(item).filter(([, v]) => v !== null && v !== undefined && v !== "");
+      if (!entries.length) return "";
+      return entries.map(([k, v]) => `${formatFieldName(k)}: ${formatSingle(v)}`).join(" · ");
+    }
+    return String(item);
+  };
+
   if (Array.isArray(criteria)) {
-    return criteria.length ? criteria.join(", ") : "Not specified";
+    const formatted = criteria.map(formatSingle).filter(Boolean);
+    return formatted.length ? formatted.join(", ") : "Not specified";
   }
+
   if (typeof criteria === "object") {
-    const entries = Object.entries(criteria).filter(([, v]) => v !== null && v !== undefined && v !== "");
-    if (!entries.length) return "Not specified";
-    return entries.map(([k, v]) => `${k}: ${v}`).join(" · ");
+    return formatSingle(criteria) || "Not specified";
   }
+
   return String(criteria);
 }
 
 function institutionOf(course) {
   const t = course?.tenantId;
-  if (t && typeof t === "object") return t.name || "Institution";
-  return "Institution";
+  if (t && typeof t === "object") return t.name || course?.institutionName || course?.institution || "Institution";
+  if (typeof t === "string" && t) return course?.institutionName || course?.institution || t;
+  return course?.institutionName || course?.institution || "Institution";
 }
 
 /* --------------------------------- Skeleton -------------------------------- */
@@ -171,7 +220,13 @@ export default function CourseDetail() {
             <>
               <div className="border border-black/10 rounded-2xl overflow-hidden">
                 <div className="flex flex-col md:flex-row gap-6 p-6">
-                  <div className="w-full md:w-72 h-48 md:h-auto rounded-xl overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex-none" />
+                  <div className="w-full md:w-72 h-48 md:h-auto rounded-xl overflow-hidden bg-gray-100 flex-none relative">
+                    <img
+                      src={getCourseImage(course)}
+                      alt={course.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
 
                   <div className="flex-1 flex flex-col">
                     <div className="text-xs text-navySoft mb-2">

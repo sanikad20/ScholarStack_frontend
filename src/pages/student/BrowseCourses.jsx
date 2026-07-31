@@ -19,25 +19,14 @@ import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
 import api from "../../api/axios";
 
-/* =========================================================================
-   ScholarStack — Browse Courses
-   Content area only — top navbar & sidebar are untouched.
-
-   Wired to the real Course model, which only has:
-     name, description, tenantId (-> Institution), eligibilityCriteria,
-     admissionCapacity, requiredDocuments, session, isActive, createdAt.
-   Everything the previous dummy UI relied on that ISN'T in that schema —
-   category, level, mode, duration, rating/reviews, seats-left/applied
-   counts, "featured/popular/recommended" flags — has been removed rather
-   than faked. What remains (search, institution, session filters; capacity,
-   required-document count, active/new badges) all comes straight from real
-   fields.
-
-   ASSUMPTION (no course routes file was provided): courses are fetched from
-   GET /courses via the shared axios instance, returning either
-   { success, data: [...] } or a bare array. Adjust the endpoint below if
-   your actual route differs.
-   ========================================================================= */
+/**
+ * Student Browse Courses Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Dynamic course discovery interface with search and institution filtering.
+ * - Displays academic cover imagery, admission capacity, session dates, required documents, and application status.
+ */
 
 /* --------------------------------- Utils -------------------------------- */
 function classNames(...c) {
@@ -192,11 +181,34 @@ function Badge({ children, tone = "neutral" }) {
   );
 }
 
+const COURSE_IMAGES = [
+  "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80",
+  "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=600&q=80",
+];
+
+export function getCourseImage(course) {
+  if (course?.imageUrl) return course.imageUrl;
+  const str = (course?.id || course?._id || course?.name || "course").toString();
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return COURSE_IMAGES[Math.abs(hash) % COURSE_IMAGES.length];
+}
+
 /* ------------------------------- Course card ----------------------------- */
 function CourseCard({ course, index = 0 }) {
   const institution = institutionOf(course);
   const requiredDocs = course.requiredDocuments || [];
   const recentlyAdded = isRecentlyAdded(course.createdAt);
+  const courseId = course.id || course._id;
+  const imageUrl = getCourseImage(course);
 
   return (
     <div
@@ -205,16 +217,20 @@ function CourseCard({ course, index = 0 }) {
       style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
     >
       {/* Banner */}
-      <Link to={`/student/courses/${course.id}`} className="block relative overflow-hidden aspect-video bg-[#F8FAFC]">
-        <div
-          className="w-full h-full flex items-center justify-center text-3xl font-extrabold"
-          style={{ color: colorForName(institution.name), background: `${colorForName(institution.name)}0D` }}
-        >
-          {initialsForName(course.name)}
-        </div>
+      <Link to={`/student/courses/${courseId}`} className="block relative overflow-hidden aspect-video bg-[#F8FAFC]">
+        <img
+          src={imageUrl}
+          alt={course.name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          onError={(e) => {
+            e.currentTarget.src = "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80";
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
 
         {/* Top-right status badges — derived from real fields only */}
-        <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
+        <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end z-10">
           {course.isActive ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#047857] text-white shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-white" /> Applications Open
@@ -232,7 +248,7 @@ function CourseCard({ course, index = 0 }) {
         </div>
 
         {/* Institution chip overlapping banner bottom */}
-        <div className="absolute -bottom-4 left-4 flex items-center gap-2 bg-white rounded-full pl-1 pr-3 py-1 shadow-md border border-[#E5E7EB]">
+        <div className="absolute -bottom-4 left-4 flex items-center gap-2 bg-white rounded-full pl-1 pr-3 py-1 shadow-md border border-[#E5E7EB] z-10">
           <InstitutionAvatar name={institution.name} />
           <span className="text-[11px] font-semibold text-[#0F172A] max-w-[150px] truncate">{institution.name}</span>
         </div>
@@ -240,7 +256,7 @@ function CourseCard({ course, index = 0 }) {
 
       {/* Body */}
       <div className="flex-1 flex flex-col p-5 pt-7">
-        <Link to={`/student/courses/${course.id}`}>
+        <Link to={`/student/courses/${courseId}`}>
           <h3 className="text-[15px] font-bold text-[#0F172A] leading-snug ss-line-clamp-2 group-hover:text-[#FF6B3D] transition-colors duration-200">
             {course.name}
           </h3>
@@ -275,19 +291,23 @@ function CourseCard({ course, index = 0 }) {
 
         {/* CTAs */}
         <div className="mt-5 flex items-center gap-2.5">
-          <button
-            disabled={!course.isActive}
-            className={classNames(
-              "flex-1 relative overflow-hidden rounded-full text-[13px] font-semibold py-2.5 transition-all duration-[250ms] ease-out active:scale-[0.97]",
-              course.isActive
-                ? "bg-[#FF6B3D] text-white hover:bg-[#F55A2A] hover:shadow-[0_8px_20px_-6px_rgba(255,107,61,0.55)]"
-                : "bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed"
-            )}
-          >
-            {course.isActive ? "Apply Now" : "Applications Closed"}
-          </button>
+          {course.isActive ? (
+            <Link
+              to={`/student/apply/${courseId}`}
+              className="flex-1 text-center relative overflow-hidden rounded-full text-[13px] font-semibold py-2.5 transition-all duration-[250ms] ease-out bg-[#FF6B3D] text-white hover:bg-[#F55A2A] hover:shadow-[0_8px_20px_-6px_rgba(255,107,61,0.55)] active:scale-[0.97]"
+            >
+              Apply Now
+            </Link>
+          ) : (
+            <button
+              disabled
+              className="flex-1 relative overflow-hidden rounded-full text-[13px] font-semibold py-2.5 bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed"
+            >
+              Applications Closed
+            </button>
+          )}
           <Link
-            to={`/student/courses/${course.id}`}
+            to={`/student/courses/${courseId}`}
             className="flex-1 text-center rounded-full border border-[#E5E7EB] text-[#0F172A] text-[13px] font-semibold py-2.5
                        transition-all duration-[250ms] ease-out hover:border-[#0F172A] hover:bg-[#F8FAFC]"
           >

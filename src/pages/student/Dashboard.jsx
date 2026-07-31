@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Check,
   FileText,
@@ -27,26 +27,14 @@ import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
 import api from "../../api/axios";
 
-/* =========================================================================
-   ScholarStack — Student Dashboard (My Applications)
-   Content area only — top navbar & sidebar are untouched.
-
-   Backend contract — GET /api/dashboard/student returns:
-     {
-       success: true,
-       data: {
-         student: { name, email, currentSession, profileCompletion },
-         stats: [...],
-         activeApplication: {...},
-         applications: [...],
-         notifications: [...],
-         deadlines: [...],
-         recommendedCourses: [...]
-       }
-     }
-   This matches the current getStudentDashboard() controller. No client-side
-   transformation needed — sections are used directly from the response.
-   ========================================================================= */
+/**
+ * Student Dashboard Page
+ * Designed & Developed by Sanika
+ * 
+ * Features:
+ * - Real-time student dashboard displaying profile completion, application statistics, active admission timeline, notifications, and course recommendations.
+ * - Interactive quick actions and deadlines management.
+ */
 
 /* ------------------------------ UI config -------------------------------- */
 // Presentation-only configs (labels, colors, ordering) — not per-student
@@ -428,7 +416,30 @@ function ApplicationProgress({ app }) {
 }
 
 /* -------------------------------- App cards ------------------------------- */
-function ApplicationCard({ app, index }) {
+function ApplicationCard({ app, index, onWithdrawn }) {
+  const navigate = useNavigate();
+  const [withdrawing, setWithdrawing] = useState(false);
+  
+  const targetCourseId = app.courseId || app.course?._id || app.course?.id;
+  const targetAppId = app.id || app._id;
+
+  const handleWithdraw = async () => {
+    if (!window.confirm(`Withdraw your application for "${app.course}"? This can't be undone.`)) {
+      return;
+    }
+    setWithdrawing(true);
+    try {
+      await api.delete(`/applications/${targetAppId}`);
+      onWithdrawn?.(targetAppId);
+    } catch (err) {
+      console.error("Failed to withdraw application:", err);
+      window.alert(
+        err?.response?.data?.message || "Couldn't withdraw this application. Please try again."
+      );
+      setWithdrawing(false);
+    }
+  };
+
   return (
     <div
       className="ss-card-in group bg-white rounded-2xl border border-[#E5E7EB] p-6
@@ -455,22 +466,42 @@ function ApplicationCard({ app, index }) {
 
       <div className="flex flex-wrap gap-2">
         <Link
-          to={`/student/applications/${app.id}`}
+          to={targetCourseId ? `/student/courses/${targetCourseId}` : "/student/courses"}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-[#FF6B3D] text-white text-[12.5px] font-semibold
                      hover:bg-[#F55A2A] transition-all duration-200"
         >
           View Details <ArrowRight size={13} />
         </Link>
-        <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#E5E7EB] text-[#0F172A] text-[12.5px] font-semibold hover:border-[#0F172A] hover:bg-[#F8FAFC] transition-all duration-200">
+        <Link
+          to={targetAppId ? `/student/documents/${targetAppId}` : "/student/applications"}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#E5E7EB] text-[#0F172A] text-[12.5px] font-semibold hover:border-[#0F172A] hover:bg-[#F8FAFC] transition-all duration-200"
+        >
           <Upload size={13} /> Upload Documents
-        </button>
+        </Link>
         {app.stage === "draft" ? (
-          <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#E5E7EB] text-[#0F172A] text-[12.5px] font-semibold hover:border-[#0F172A] hover:bg-[#F8FAFC] transition-all duration-200">
+          <button
+            type="button"
+            onClick={() => {
+              if (targetCourseId) {
+                navigate(`/student/apply/${targetCourseId}`);
+              } else if (targetAppId) {
+                navigate(`/student/documents/${targetAppId}`);
+              } else {
+                navigate("/student/applications");
+              }
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#E5E7EB] text-[#0F172A] text-[12.5px] font-semibold hover:border-[#0F172A] hover:bg-[#F8FAFC] transition-all duration-200"
+          >
             <PlayCircle size={13} /> Resume Application
           </button>
         ) : (
-          <button className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#E5E7EB] text-[#DC2626] text-[12.5px] font-semibold hover:bg-[#FEF2F2] hover:border-[#FCA5A5] transition-all duration-200">
-            <XCircle size={13} /> Withdraw
+          <button
+            type="button"
+            onClick={handleWithdraw}
+            disabled={withdrawing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#E5E7EB] text-[#DC2626] text-[12.5px] font-semibold hover:bg-[#FEF2F2] hover:border-[#FCA5A5] transition-all duration-200 disabled:opacity-50"
+          >
+            <XCircle size={13} /> {withdrawing ? "Withdrawing…" : "Withdraw"}
           </button>
         )}
       </div>
@@ -479,13 +510,49 @@ function ApplicationCard({ app, index }) {
 }
 
 /* ------------------------------- Quick actions ----------------------------- */
-function QuickActions() {
+// Each action resolves to the most relevant destination given the student's
+// current applications. Application-specific actions fall back to the
+// applications list when there's no matching application to target.
+function QuickActions({ applications = [] }) {
+  const navigate = useNavigate();
+
+  const draftApp = applications.find((a) => a.stage === "draft" || a.status === "draft");
+  const admittedApp = applications.find((a) => a.stage === "admitted" || a.status === "admitted");
+  const firstApp = applications[0];
+
   const actions = [
-    { label: "Continue Incomplete Application", icon: PlayCircle },
-    { label: "Browse New Courses", icon: Compass },
-    { label: "Download Admission Letter", icon: Download },
-    { label: "View Uploaded Documents", icon: FolderOpen },
-    { label: "Contact Institution", icon: Mail },
+    {
+      label: "Continue Incomplete Application",
+      icon: PlayCircle,
+      onClick: () => {
+        if (draftApp) {
+          const courseId = draftApp.courseId || draftApp.course?._id || draftApp.course?.id;
+          if (courseId) {
+            navigate(`/student/apply/${courseId}`);
+            return;
+          }
+          const appId = draftApp.id || draftApp._id;
+          if (appId) {
+            navigate(`/student/documents/${appId}`);
+            return;
+          }
+        }
+        navigate("/student/courses");
+      },
+    },
+    {
+      label: "Browse New Courses",
+      icon: Compass,
+      onClick: () => navigate("/student/courses"),
+    },
+    {
+      label: "View Uploaded Documents",
+      icon: FolderOpen,
+      onClick: () => {
+        const appId = firstApp?.id || firstApp?._id;
+        navigate(appId ? `/student/documents/${appId}` : "/student/applications");
+      },
+    },
   ];
   return (
     <div className="ss-card-in bg-white rounded-2xl border border-[#E5E7EB] p-5">
@@ -496,6 +563,8 @@ function QuickActions() {
           return (
             <button
               key={i}
+              type="button"
+              onClick={a.onClick}
               className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left text-[13px] font-medium text-[#0F172A]
                          hover:bg-[#FFF1EB] hover:text-[#F55A2A] transition-all duration-200 group"
             >
@@ -556,8 +625,14 @@ function DeadlinesWidget({ deadlines }) {
         <div className="flex flex-col gap-3">
           {deadlines.map((d) => {
             const Icon = resolveIcon(d.icon, CalendarClock);
+            const rawId = d.applicationId || d.id || "";
+            const appId = typeof rawId === "string" ? rawId.replace(/-docs$/, "") : rawId;
             return (
-              <div key={d.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[#F1F5F9] hover:border-[#E5E7EB] transition-colors duration-200">
+              <Link
+                key={d.id}
+                to={appId ? `/student/documents/${appId}` : "/student/applications"}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[#F1F5F9] hover:border-[#FF6B3D]/50 hover:bg-[#FFF8F5] transition-colors duration-200"
+              >
                 <span className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${d.tone || "#FF6B3D"}18`, color: d.tone || "#FF6B3D" }}>
                   <Icon size={15} />
                 </span>
@@ -565,7 +640,7 @@ function DeadlinesWidget({ deadlines }) {
                   <p className="text-[11.5px] text-[#64748B]">{d.label}</p>
                   <p className="text-[13px] font-bold text-[#0F172A]">{d.value}</p>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -616,10 +691,13 @@ function RecommendedCourses({ courses }) {
           >
             <div className="relative overflow-hidden aspect-video">
               <img
-                src={c.imageUrl || `https://picsum.photos/seed/${c.imgSeed || c.id}/400/225`}
+                src={c.imageUrl || `https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80`}
                 alt={c.title}
                 className="w-full h-full object-cover transition-transform duration-[250ms] ease-out group-hover:scale-[1.06]"
                 loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.src = "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=600&q=80";
+                }}
               />
               <div className="absolute -bottom-4 left-4 flex items-center gap-2 bg-white rounded-full pl-1 pr-3 py-1 shadow-md border border-[#E5E7EB]">
                 <InstitutionAvatar name={c.institution} color={c.color} size={26} />
@@ -636,9 +714,12 @@ function RecommendedCourses({ courses }) {
                   <Star size={12} fill="#FF6B3D" className="text-[#FF6B3D]" /> {c.rating ?? "—"}
                 </span>
               </div>
-              <button className="mt-3 w-full py-2 rounded-full bg-[#FF6B3D] text-white text-[12.5px] font-semibold hover:bg-[#F55A2A] transition-all duration-200 active:scale-[0.97]">
+              <Link
+                to={`/student/apply/${c.id || c._id}`}
+                className="mt-3 block w-full py-2 text-center rounded-full bg-[#FF6B3D] text-white text-[12.5px] font-semibold hover:bg-[#F55A2A] transition-all duration-200 active:scale-[0.97]"
+              >
                 Apply Now
-              </button>
+              </Link>
             </div>
           </div>
         ))}
@@ -810,7 +891,16 @@ export default function Dashboard() {
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                         {loading
                           ? Array.from({ length: 4 }).map((_, i) => <AppCardSkeleton key={i} />)
-                          : applications.map((app, i) => <ApplicationCard key={app.id ?? i} app={app} index={i} />)}
+                          : applications.map((app, i) => (
+                              <ApplicationCard
+                                key={app.id ?? i}
+                                app={app}
+                                index={i}
+                                onWithdrawn={(id) =>
+                                  setApplications((prev) => prev.filter((a) => a.id !== id))
+                                }
+                              />
+                            ))}
                       </div>
                     </section>
 
@@ -831,7 +921,7 @@ export default function Dashboard() {
                         </>
                       ) : (
                         <>
-                          <QuickActions />
+                          <QuickActions applications={applications} />
                           <NotificationsWidget notifications={notifications} />
                           <DeadlinesWidget deadlines={deadlines} />
                         </>
