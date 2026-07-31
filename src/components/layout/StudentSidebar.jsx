@@ -1,5 +1,7 @@
+// src/components/layout/StudentSidebar.jsx
+import { useState, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, ClipboardList, User } from "lucide-react";
+import { Home, BookOpen, ClipboardList, ChevronLeft, ChevronRight } from "lucide-react";
 
 const NAV_ITEMS = [
   {
@@ -9,51 +11,60 @@ const NAV_ITEMS = [
     icon: Home,
   },
   {
-    label: "Browse Course",
+    label: "Browse Courses",
     to: "/student/courses",
     match: "/student/courses",
     icon: BookOpen,
   },
   {
-    label: "My Application",
+    label: "My Applications",
     to: "/student/applications",
     match: "/student/applications",
     icon: ClipboardList,
-  },
-  {
-    label: "Profile",
-    to: "/student/profile",
-    match: "/student/profile",
-    icon: User,
   },
 ];
 
 export default function StudentSidebar() {
   const { pathname } = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const isActive = (path) => pathname.startsWith(path);
 
   return (
-    <aside className="w-56 bg-[#1E2128] text-white min-h-[calc(100vh-80px)] shrink-0">
-      <nav className="pt-6">
+    <aside
+      className={`relative bg-[#1E2128] text-white min-h-[calc(100vh-80px)] shrink-0 flex flex-col transition-all duration-300 ${
+        collapsed ? "w-16" : "w-56"
+      }`}
+    >
+      {/* ─── Collapse Toggle ────────────────────────────── */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-4 w-6 h-6 rounded-full bg-accent text-white flex items-center justify-center hover:bg-accent-dark transition shadow-md z-10"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
+
+      <nav className="pt-8 flex-1 overflow-y-auto relative">
         {NAV_ITEMS.map(({ label, to, match, icon: Icon }) => {
-          const active = pathname.startsWith(match);
+          const active = isActive(match);
 
           return (
             <Link
               key={to}
               to={to}
-              className={`relative flex items-center gap-4 px-7 py-5 transition-all duration-200 ${
+              className={`relative flex items-center gap-4 px-4 py-3 transition-all duration-200 rounded-md mx-2 ${
                 active
-                  ? "text-white"
-                  : "text-white/80 hover:text-white hover:bg-white/5"
-              }`}
+                  ? "bg-accent/20 text-white"
+                  : "text-white/60 hover:text-white hover:bg-white/5"
+              } ${collapsed ? "justify-center" : "px-4"}`}
+              title={collapsed ? label : ""}
             >
               {active && (
-                <span className="absolute left-0 top-0 h-full w-[3px] bg-[#ff6b3d]" />
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-[3px] bg-accent rounded-r" />
               )}
-
-              <Icon size={19} />
-
-              <span className="text-[16px] font-medium">{label}</span>
+              <Icon size={19} className={active ? "text-accent" : "text-white/40"} />
+              {!collapsed && <span className="text-[16px] font-medium">{label}</span>}
             </Link>
           );
         })}

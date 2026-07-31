@@ -51,7 +51,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await api.post("/auth/register", {
+      await api.post("/auth/register/student", {
         name: `${form.firstName} ${form.lastName}`.trim(),
         email: form.email,
         password: form.password,

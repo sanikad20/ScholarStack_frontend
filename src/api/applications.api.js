@@ -11,5 +11,6 @@ export const getApplicationTimeline = (id) => api.get(`/applications/${id}/timel
 // ADMIN ROUTES
 export const getAllApplications = () => api.get("/applications/admin/all");
 export const updateApplicationStatus = (id, data) => api.put(`/applications/admin/${id}`, data);
+export const generateAiMessage = (id, data) => api.post(`/applications/${id}/generate-message`, data);
 export const filterApplications = (params) => api.get("/applications/admin/filter", {params});
 export const deleteApplication = (id) => api.delete(`/applications/${id}`);

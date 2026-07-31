@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 // PUBLIC PAGES 
-import ForInstitutions from "./pages/public/ForInstitutions.jsx";
+import ForInstitutions from "./pages/public/forInstitutions.jsx";
 import RegisterInstitution from "./pages/public/RegisterInstitution.jsx";
 import Landing from "./pages/public/Landing.jsx";
 import Login from "./pages/public/Login.jsx";
@@ -18,6 +18,7 @@ import ApplicationForm from "./pages/student/ApplicationForm.jsx";
 import MyApplications from "./pages/student/MyApplications.jsx";
 import Profile from "./pages/student/Profile.jsx";
 import DocumentUpload from "./pages/student/DocumentUpload.jsx";
+import Notifications from "./pages/student/Notifications.jsx";
 
 
 // INSTITUTION ADMIN PAGES
@@ -31,7 +32,7 @@ import FormBuilder from "./pages/admin/FormBuilder.jsx";
 import ClassificationRules from "./pages/admin/ClassificationRules.jsx";
 import ClassificationStats from "./pages/admin/ClassificationStats.jsx";
 import ClassificationBulk from "./pages/admin/ClassificationBulk.jsx";
-import Notifications from "./pages/admin/Notifications.jsx";
+import AdminNotifications from "./pages/admin/AdminNotifications.jsx";
 import AdminProfile from "./pages/admin/AdminProfile.jsx";
 
 // SUPER ADMIN PAGES
@@ -72,7 +73,8 @@ export default function App() {
       <Route path="/student/apply/:id" element={<ApplicationForm />} />
       <Route path="/student/applications" element={<MyApplications />} />
       <Route path="/student/profile" element={<Profile />} />
-      <Route path="/student/documents" element={<DocumentUpload />} />
+      <Route path="/student/documents/:applicationId" element={<DocumentUpload />} />
+      <Route path="/student/notifications" element={<Notifications />} />
 
       {/* INSTITUTION ADMIN ROUTES */}
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
@@ -86,7 +88,7 @@ export default function App() {
       <Route path="/admin/classification/rules" element={<ClassificationRules />} />
       <Route path="/admin/classification/stats" element={<ClassificationStats />} />
       <Route path="/admin/classification/run" element={<ClassificationBulk />} />
-      <Route path="/admin/notifications" element={<Notifications />} />
+      <Route path="/admin/notifications" element={<AdminNotifications />} />
       <Route path="/admin/profile" element={<AdminProfile />} />
 
       {/* SUPER ADMIN ROUTES */}

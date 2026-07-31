@@ -1,6 +1,7 @@
 // src/pages/superadmin/SuperAdminProfile.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { User, LogOut } from "lucide-react";
 
 import SuperAdminTopbar from "../../components/layout/SuperAdminTopbar";
@@ -11,14 +12,11 @@ import Modal from "../../components/ui/Modal";
 
 import { changePassword } from "../../api/auth.api";
 
-const getCurrentUser = () => {
-  const user = localStorage.getItem("user");
-  return user ? JSON.parse(user) : null;
-};
-
 export default function SuperAdminProfile() {
   const navigate = useNavigate();
-  const [user] = useState(getCurrentUser());
+  // ✅ Use AuthContext for user and logout
+  const { user, logout } = useAuth();
+
   const [toast, setToast] = useState(null);
 
   // Password change modal
@@ -63,9 +61,9 @@ export default function SuperAdminProfile() {
     }
   };
 
+  // ✅ Use logout from context
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout(); // Clears context + localStorage
     navigate("/admin-login");
   };
 
@@ -103,6 +101,7 @@ export default function SuperAdminProfile() {
                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
                   Name
                 </label>
+                {/* ✅ Use user from context */}
                 <div className="text-navy font-medium">{user?.name || "—"}</div>
               </div>
               <div>

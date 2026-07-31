@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Trash2,
   RotateCw,
+  Brain
 } from "lucide-react";
 
 import AdminTopbar from "../../components/layout/AdminTopbar";
@@ -27,8 +28,13 @@ import {
   deleteApplication,
   getApplicationTimeline,
   getWorkflowStatuses,
+  generateAiMessage, 
 } from "../../api/applications.api";
-import { getDocuments, updateDocumentStatus } from "../../api/documents.api";
+import { 
+  getDocuments, 
+  updateDocumentStatus,
+  verifyDocument
+} from "../../api/documents.api";
 import { classifySingleApplication } from "../../api/classifications.api";
 
 // ─── Fallback Data ─────────────────────────────────────
@@ -152,6 +158,19 @@ export default function ApplicationDetail() {
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // ─── AI Assist States ───────────────────────────────
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [aiEmailSubject, setAiEmailSubject] = useState("");
+  const [aiEmailMessage, setAiEmailMessage] = useState("");
+  const [aiNotification, setAiNotification] = useState("");
+
+  // ─── AI Document Verification States ────────────────
+  const [verifyingDocId, setVerifyingDocId] = useState(null);
+  const [verificationResults, setVerificationResults] = useState({});
+  const [selectedVerification, setSelectedVerification] = useState(null);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
+
   // ─── Confirmation Modal State ──────────────────────
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // 'classify' | 'delete'
@@ -227,9 +246,41 @@ export default function ApplicationDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+   // ─── AI Document Verification ──────────────────────
+  const handleVerifyDocument = async (docId) => {
+    setVerifyingDocId(docId);
+    try {
+      const { data } = await verifyDocument(docId);
+      if (data?.success) {
+        const result = data.data;
+        setVerificationResults((prev) => ({
+          ...prev,
+          [docId]: result,
+        }));
+        setSelectedVerification(result);
+        setIsVerificationModalOpen(true);
+        showToast(
+          result.verified
+            ? "Document verified successfully!"
+            : "Document has mismatches.",
+          result.verified ? "success" : "warning"
+        );
+      } else {
+        showToast("Failed to verify document.", "error");
+      }
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Error verifying document.",
+        "error"
+      );
+    } finally {
+      setVerifyingDocId(null);
+    }
+  };
+
   // ─── Status Update ──────────────────────────────────
   const handleSave = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSaving(true);
     try {
       const res = await updateApplicationStatus(id, { status, remarks });
@@ -242,6 +293,52 @@ export default function ApplicationDetail() {
       }
     } catch (err) {
       showToast(err.response?.data?.message ?? "Error updating status.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── AI Assist Handlers ─────────────────────────────
+  const handleAiGenerate = async () => {
+    setGeneratingAi(true);
+    setIsAiModalOpen(true);
+    try {
+      const res = await generateAiMessage(id, { status, remarks });
+      if (res.data?.success && res.data?.data) {
+        const { emailSubject, emailMessage, notificationMessage } = res.data.data;
+        setAiEmailSubject(emailSubject);
+        setAiEmailMessage(emailMessage);
+        setAiNotification(notificationMessage);
+      } else {
+        showToast("Failed to generate AI content.", "error");
+      }
+    } catch (err) {
+      showToast("Failed to connect to the generator service.", "error");
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
+
+  const handleSaveWithAi = async () => {
+    setSaving(true);
+    try {
+      const res = await updateApplicationStatus(id, {
+        status,
+        remarks,
+        customEmailSubject: aiEmailSubject,
+        customEmailMessage: aiEmailMessage,
+        customNotificationMessage: aiNotification,
+      });
+      if (res.data?.success) {
+        setApplication(res.data.data);
+        showToast("Status updated and custom notifications sent!", "success");
+        setIsAiModalOpen(false);
+        fetchData(); // Refresh timeline
+      } else {
+        showToast("Failed to update status.", "error");
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message ?? "Error updating status with AI message.", "error");
     } finally {
       setSaving(false);
     }
@@ -620,7 +717,9 @@ export default function ApplicationDetail() {
                   Documents
                 </h2>
                 <div className="space-y-3">
-                  {documents.map((doc) => (
+                  {documents.map((doc) => {
+                    const verification = verificationResults[doc._id];
+                  return (
                     <div
                       key={doc._id}
                       className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 transition cursor-pointer"
@@ -631,24 +730,57 @@ export default function ApplicationDetail() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-                          <FileText size={16} />
+                           <FileText size={16} />
                         </div>
                         <div>
                           <span className="block font-semibold text-navy text-sm">{doc.name}</span>
                           <span className="text-xs text-navySoft">{doc.type}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${DOC_STATUS_COLORS[doc.status] || "bg-gray-100 text-gray-600"
-                            }`}
+                      <div className="flex items-center gap-2">
+                        {/* AI VERIFY BUTTON */}
+                        <button
+                          onClick={(e) => {
+                            handleVerifyDocument(doc._id);
+                          }}
+                          disabled={verifyingDocId === doc._id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500 text-purple-600 px-3 py-1.5 text-xs font-semibold hover:bg-purple-50 transition disabled:opacity-60"
                         >
-                          {doc.status}
-                        </span>
-                        <Eye size={16} className="text-gray-400 hover:text-accent" />
+                          {verifyingDocId === doc._id ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <Brain size={14} />
+                          )}
+                          Verify
+                        </button>
+
+                        {/* VERIFICATION BADGE */}
+                        {verification && (
+                            <span
+                              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                verification.verified
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {verification.verified ? "Verified" : "Mismatch"}
+                            </span>
+                        )}
+
+                        {/* ─── Document Status ──────────────────── */}
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                              DOC_STATUS_COLORS[doc.status] || "bg-gray-100 text-gray-600"
+                            }`}
+                          >
+                            {doc.status}
+                          </span>
+                          <Eye size={16} className="text-gray-400 hover:text-accent" />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {documents.length === 0 && (
                     <p className="text-sm text-navySoft italic py-4 text-center">
                       No documents uploaded.
@@ -660,7 +792,7 @@ export default function ApplicationDetail() {
 
             {/* ─── RIGHT COLUMN ────────────────────────── */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Status Update */}
+              {/* Status Update Form */}
               <div className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
                 <h2 className="text-lg font-bold text-navy mb-6 text-center">Update Status</h2>
                 <form onSubmit={handleSave} className="space-y-5">
@@ -691,13 +823,24 @@ export default function ApplicationDetail() {
                       className="w-full h-24 rounded-lg border border-gray-200 p-4 text-sm bg-white outline-none focus:border-accent resize-none transition"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full py-3 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition disabled:opacity-60"
-                  >
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
+
+                  {/* Integrated AI Assist Option */}
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="flex-1 py-3 rounded-lg bg-gray-800 text-white hover:bg-gray-900 text-sm font-bold transition disabled:opacity-60"
+                    >
+                      {saving ? "Saving..." : "Save Status"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAiGenerate}
+                      className="flex-1 py-3 rounded-lg bg-accent text-white hover:bg-accent-dark text-sm font-bold transition flex items-center justify-center gap-1"
+                    >
+                      ✨ AI Write Message
+                    </button>
+                  </div>
                 </form>
               </div>
 
@@ -783,6 +926,58 @@ export default function ApplicationDetail() {
         )}
       </Modal>
 
+      {/* ─── Verification Result Modal ───────────────── */}
+      <Modal
+        isOpen={isVerificationModalOpen}
+        onClose={() => {
+          setIsVerificationModalOpen(false);
+          setSelectedVerification(null);
+        }}
+        title="AI Document Verification"
+        maxWidth="max-w-lg"
+      >
+        {selectedVerification && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span
+                className={`text-sm font-semibold ${
+                  selectedVerification.verified ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {selectedVerification.verified ? "Verified" : "Mismatches Found"}
+              </span>
+              <span className="text-xs text-navySoft">(AI extracted)</span>
+            </div>
+            {selectedVerification.mismatches.length > 0 ? (
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-navySoft">Mismatches:</h4>
+                {selectedVerification.mismatches.map((m, idx) => (
+                  <div key={idx} className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm font-semibold text-red-700">{m.field}</p>
+                    <p className="text-xs text-red-600">
+                      Expected: <span className="font-medium">{m.expected}</span> &nbsp;|&nbsp; Extracted:{" "}
+                      <span className="font-medium">{m.extracted}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-green-600">
+                All extracted fields match the application data.
+              </p>
+            )}
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-xs text-navySoft">
+                Extracted data:{" "}
+                <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">
+                  {JSON.stringify(selectedVerification.extracted, null, 2)}
+                </code>
+              </p>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* ─── Confirmation Modal ───────────────────────── */}
       <Modal
         isOpen={showConfirmModal}
@@ -821,6 +1016,73 @@ export default function ApplicationDetail() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* ─── AI Notification Preview Modal ──────────────── */}
+      <Modal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        title="✨ AI Assist: Personalize Notification"
+        maxWidth="max-w-2xl"
+      >
+        {generatingAi ? (
+          <div className="py-12 text-center space-y-3">
+            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm font-semibold text-navySoft">Writing custom notifications with AI...</p>
+          </div>
+        ) : (
+          <div className="space-y-4 mt-2">
+            <p className="text-xs text-gray-500">
+              Gemini has drafted personalized notifications for <strong>{application?.applicantId?.name}</strong> regarding the course <strong>{application?.courseId?.name}</strong>. Feel free to edit below:
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Email Subject</label>
+              <input
+                type="text"
+                value={aiEmailSubject}
+                onChange={(e) => setAiEmailSubject(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm outline-none text-navy focus:border-accent font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Email Message</label>
+              <textarea
+                value={aiEmailMessage}
+                onChange={(e) => setAiEmailMessage(e.target.value)}
+                className="w-full h-48 border border-gray-200 rounded-lg p-4 text-sm outline-none text-navy focus:border-accent resize-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-400 uppercase mb-1">In-App Notification</label>
+              <textarea
+                value={aiNotification}
+                onChange={(e) => setAiNotification(e.target.value)}
+                className="w-full h-20 border border-gray-200 rounded-lg p-4 text-sm outline-none text-navy focus:border-accent resize-none font-medium"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleAiGenerate}
+                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold hover:bg-gray-50"
+              >
+                Regenerate
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveWithAi}
+                disabled={saving}
+                className="flex-1 py-2 bg-accent hover:bg-accent-dark text-white rounded-lg text-sm font-bold transition disabled:opacity-60"
+              >
+                {saving ? "Sending..." : "Send Status Update & Messages"}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* ─── Toast ────────────────────────────────────── */}

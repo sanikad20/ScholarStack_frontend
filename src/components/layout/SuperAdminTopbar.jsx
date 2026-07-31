@@ -1,6 +1,7 @@
 // src/components/layout/SuperAdminTopbar.jsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { Bell, User, LogOut, CheckCircle } from "lucide-react";
 import graduationCap from "../../assets/GraduationCap.png";
 
@@ -17,6 +18,8 @@ const DUMMY_USER = { name: "Super Admin", email: "superadmin@scholarstack.com", 
 
 export default function SuperAdminTopbar() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -89,8 +92,7 @@ export default function SuperAdminTopbar() {
 
   // ─── Logout ───────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/admin-login");
   };
 

@@ -1,132 +1,92 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Search,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   X,
-  Star,
   Users,
-  Clock,
   MapPin,
   CalendarDays,
-  Flame,
   Sparkles,
-  TrendingUp,
-  Clock3,
-  ThumbsUp,
+  FileText,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import StudentTopbar from "../../components/layout/StudentTopbar";
 import StudentSidebar from "../../components/layout/StudentSidebar";
 import Footer from "../../components/layout/Footer";
+import api from "../../api/axios";
 
 /* =========================================================================
    ScholarStack — Browse Courses
-   Premium, Coursera/Udemy/LinkedIn-Learning-inspired redesign.
    Content area only — top navbar & sidebar are untouched.
+
+   Wired to the real Course model, which only has:
+     name, description, tenantId (-> Institution), eligibilityCriteria,
+     admissionCapacity, requiredDocuments, session, isActive, createdAt.
+   Everything the previous dummy UI relied on that ISN'T in that schema —
+   category, level, mode, duration, rating/reviews, seats-left/applied
+   counts, "featured/popular/recommended" flags — has been removed rather
+   than faked. What remains (search, institution, session filters; capacity,
+   required-document count, active/new badges) all comes straight from real
+   fields.
+
+   ASSUMPTION (no course routes file was provided): courses are fetched from
+   GET /courses via the shared axios instance, returning either
+   { success, data: [...] } or a bare array. Adjust the endpoint below if
+   your actual route differs.
    ========================================================================= */
-
-/* ---------------------------- Design tokens --------------------------- */
-const COLORS = {
-  bg: "#FFFFFF",
-  bgSoft: "#F8FAFC",
-  primary: "#FF6B3D",
-  primaryHover: "#F55A2A",
-  text: "#0F172A",
-  textSoft: "#64748B",
-  border: "#E5E7EB",
-};
-
-/* ------------------------------ Dummy data ----------------------------- */
-const INSTITUTIONS = [
-  { name: "MIT OpenLearn", initials: "MIT", color: "#0F172A" },
-  { name: "Stanford Online", initials: "STN", color: "#8C1515" },
-  { name: "IIT Delhi", initials: "IITD", color: "#B91C1C" },
-  { name: "Wharton Executive", initials: "WHR", color: "#065F46" },
-  { name: "Imperial College", initials: "ICL", color: "#1D4ED8" },
-  { name: "National Design Inst.", initials: "NDI", color: "#7C3AED" },
-];
-
-const CATEGORIES = [
-  "Development",
-  "Data Science",
-  "Business",
-  "Design",
-  "Marketing",
-  "Cloud & DevOps",
-];
-
-const DURATIONS = ["4 weeks", "6 weeks", "8 weeks", "12 weeks", "6 months"];
-const LEVELS = ["Beginner", "Intermediate", "Advanced"];
-const MODES = ["Online", "Offline", "Hybrid"];
-const SORTS = ["Most Relevant", "Newest", "Highest Rated", "Closing Soon", "Most Applied"];
-
-function seedCourse(id, overrides = {}) {
-  const inst = INSTITUTIONS[id % INSTITUTIONS.length];
-  const cat = CATEGORIES[id % CATEGORIES.length];
-  const seatsTotal = 60 + ((id * 7) % 120);
-  const applied = Math.floor(seatsTotal * (0.4 + ((id * 13) % 50) / 100));
-  const seatsLeft = Math.max(seatsTotal - applied, 3);
-  const closingSoon = id % 4 === 0;
-  const rating = (4.2 + ((id * 3) % 8) / 10).toFixed(1);
-
-  return {
-    id,
-    title: [
-      "Full-Stack Web Development Bootcamp",
-      "Applied Machine Learning & Deep Learning",
-      "Product Management Fundamentals",
-      "UI/UX Design: From Wireframe to Prototype",
-      "Cloud Architecture on AWS & Azure",
-      "Digital Marketing & Growth Strategy",
-      "Data Structures & Algorithms Mastery",
-      "Business Analytics with Python & SQL",
-    ][id % 8],
-    description:
-      "A rigorous, project-based curriculum designed with industry mentors. Build a portfolio-ready capstone and graduate with a verified certificate.",
-    category: cat,
-    institution: inst,
-    duration: DURATIONS[id % DURATIONS.length],
-    level: LEVELS[id % LEVELS.length],
-    mode: MODES[id % MODES.length],
-    startDate: new Date(2026, 7 + (id % 4), 4 + (id % 20)).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    lastApplyDate: new Date(2026, 6 + (id % 4), 10 + (id % 15)).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    seatsTotal,
-    seatsLeft,
-    applied,
-    rating,
-    reviews: 200 + ((id * 37) % 4800),
-    applicationsOpen: id % 9 !== 0,
-    closingSoon,
-    imageSeed: `scholarstack-${id}`,
-    featured: id % 5 === 0,
-    popular: id % 3 === 0,
-    isNew: id % 6 === 0,
-    recommended: id % 4 === 1,
-    recent: id % 2 === 0,
-    ...overrides,
-  };
-}
-
-const ALL_COURSES = Array.from({ length: 20 }, (_, i) => seedCourse(i + 1));
 
 /* --------------------------------- Utils -------------------------------- */
 function classNames(...c) {
   return c.filter(Boolean).join(" ");
 }
 
+// Deterministic color from a name, since the schema has no institution
+// color field — purely a display derivation, not fabricated data.
+const AVATAR_PALETTE = ["#0F172A", "#8C1515", "#B91C1C", "#065F46", "#1D4ED8", "#7C3AED", "#B45309", "#0E7490"];
+function colorForName(name) {
+  const str = name || "?";
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
+function initialsForName(name) {
+  return (name || "?")
+    .split(" ")
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 3)
+    .join("")
+    .toUpperCase();
+}
+
+function institutionOf(course) {
+  const t = course.tenantId;
+  if (t && typeof t === "object") {
+    return { id: t._id, name: t.name || "Institution" };
+  }
+  return { id: t || null, name: "Institution" };
+}
+
+function formatDate(dateInput) {
+  if (!dateInput) return null;
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function isRecentlyAdded(dateInput, days = 14) {
+  if (!dateInput) return false;
+  const d = new Date(dateInput);
+  if (Number.isNaN(d.getTime())) return false;
+  return Date.now() - d.getTime() <= days * 24 * 60 * 60 * 1000;
+}
+
 /* ------------------------------ Local styles ---------------------------- */
-/* Keyframes + scrollbar hiding, scoped locally since no global stylesheet
-   access is assumed here. Safe to hoist into index.css if preferred. */
 function PageStyles() {
   return (
     <style>{`
@@ -149,11 +109,6 @@ function PageStyles() {
         background-size: 800px 100%;
         animation: ss-shimmer 1.6s infinite linear;
       }
-      .ss-scroll-row {
-        scroll-behavior: smooth;
-        scrollbar-width: none;
-      }
-      .ss-scroll-row::-webkit-scrollbar { display: none; }
       .ss-line-clamp-2 {
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -180,7 +135,7 @@ function HeroSkeleton() {
 function FilterBarSkeleton() {
   return (
     <div className="flex flex-wrap gap-3">
-      {Array.from({ length: 7 }).map((_, i) => (
+      {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="ss-shimmer h-10 w-28 rounded-full" />
       ))}
     </div>
@@ -206,34 +161,14 @@ function CourseCardSkeleton() {
 }
 
 /* --------------------------------- Bits --------------------------------- */
-function StarRating({ rating }) {
-  const full = Math.floor(rating);
-  const hasHalf = rating - full >= 0.5;
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="inline-flex text-[#FF6B3D]">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            size={13}
-            fill={i < full || (i === full && hasHalf) ? "#FF6B3D" : "none"}
-            strokeWidth={1.5}
-          />
-        ))}
-      </span>
-      <span className="text-xs font-semibold text-[#0F172A]">{rating}</span>
-    </span>
-  );
-}
-
-function InstitutionAvatar({ institution, size = 28 }) {
+function InstitutionAvatar({ name, size = 28 }) {
   return (
     <div
       className="flex items-center justify-center rounded-full text-[10px] font-bold text-white shrink-0 ring-2 ring-white shadow-sm"
-      style={{ width: size, height: size, background: institution.color }}
-      title={institution.name}
+      style={{ width: size, height: size, background: colorForName(name) }}
+      title={name}
     >
-      {institution.initials.slice(0, 3)}
+      {initialsForName(name)}
     </div>
   );
 }
@@ -259,7 +194,9 @@ function Badge({ children, tone = "neutral" }) {
 
 /* ------------------------------- Course card ----------------------------- */
 function CourseCard({ course, index = 0 }) {
-  const seatsPct = Math.round((course.seatsLeft / course.seatsTotal) * 100);
+  const institution = institutionOf(course);
+  const requiredDocs = course.requiredDocuments || [];
+  const recentlyAdded = isRecentlyAdded(course.createdAt);
 
   return (
     <div
@@ -268,42 +205,36 @@ function CourseCard({ course, index = 0 }) {
       style={{ animationDelay: `${Math.min(index, 8) * 45}ms` }}
     >
       {/* Banner */}
-      <Link to={`/student/courses/${course.id}`} className="block relative overflow-hidden aspect-video">
-        <img
-          src={`https://picsum.photos/seed/${course.imageSeed}/560/315`}
-          alt={course.title}
-          className="w-full h-full object-cover transition-transform duration-[250ms] ease-out group-hover:scale-[1.06]"
-          loading="lazy"
-        />
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
-
-        {/* Top-left badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/95 text-[#0F172A] shadow-sm backdrop-blur">
-            {course.category}
-          </span>
+      <Link to={`/student/courses/${course.id}`} className="block relative overflow-hidden aspect-video bg-[#F8FAFC]">
+        <div
+          className="w-full h-full flex items-center justify-center text-3xl font-extrabold"
+          style={{ color: colorForName(institution.name), background: `${colorForName(institution.name)}0D` }}
+        >
+          {initialsForName(course.name)}
         </div>
 
-        {/* Top-right status badges */}
+        {/* Top-right status badges — derived from real fields only */}
         <div className="absolute top-3 right-3 flex flex-col gap-1.5 items-end">
-          {course.applicationsOpen && (
+          {course.isActive ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#047857] text-white shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-white" /> Applications Open
             </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#64748B] text-white shadow-sm">
+              Closed
+            </span>
           )}
-          {course.closingSoon && (
+          {recentlyAdded && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#FF6B3D] text-white shadow-sm">
-              <Clock3 size={11} /> Closing Soon
+              <Sparkles size={11} /> New
             </span>
           )}
         </div>
 
         {/* Institution chip overlapping banner bottom */}
         <div className="absolute -bottom-4 left-4 flex items-center gap-2 bg-white rounded-full pl-1 pr-3 py-1 shadow-md border border-[#E5E7EB]">
-          <InstitutionAvatar institution={course.institution} />
-          <span className="text-[11px] font-semibold text-[#0F172A] max-w-[110px] truncate">
-            {course.institution.name}
-          </span>
+          <InstitutionAvatar name={institution.name} />
+          <span className="text-[11px] font-semibold text-[#0F172A] max-w-[150px] truncate">{institution.name}</span>
         </div>
       </Link>
 
@@ -311,66 +242,49 @@ function CourseCard({ course, index = 0 }) {
       <div className="flex-1 flex flex-col p-5 pt-7">
         <Link to={`/student/courses/${course.id}`}>
           <h3 className="text-[15px] font-bold text-[#0F172A] leading-snug ss-line-clamp-2 group-hover:text-[#FF6B3D] transition-colors duration-200">
-            {course.title}
+            {course.name}
           </h3>
         </Link>
-        <p className="mt-1.5 text-[13px] text-[#64748B] ss-line-clamp-2 leading-relaxed">
-          {course.description}
-        </p>
+        {course.description && (
+          <p className="mt-1.5 text-[13px] text-[#64748B] ss-line-clamp-2 leading-relaxed">{course.description}</p>
+        )}
 
-        {/* Meta row */}
+        {/* Meta row — only real fields */}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-[#64748B]">
-          <span className="inline-flex items-center gap-1">
-            <Clock size={13} /> {course.duration}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MapPin size={13} /> {course.mode}
-          </span>
-          <Badge tone="neutral">{course.level}</Badge>
-        </div>
-
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-[#64748B]">
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays size={13} /> Starts {course.startDate}
-          </span>
-        </div>
-        <div className="mt-1 text-[12px] text-[#DC2626] font-medium">
-          Apply before {course.lastApplyDate}
-        </div>
-
-        {/* Rating + reviews */}
-        <div className="mt-3 flex items-center justify-between">
-          <StarRating rating={course.rating} />
-          <span className="text-[12px] text-[#64748B]">{course.reviews.toLocaleString()} reviews</span>
-        </div>
-
-        {/* Seats / applied */}
-        <div className="mt-3">
-          <div className="flex items-center justify-between text-[12px] mb-1">
-            <span className="inline-flex items-center gap-1 text-[#64748B]">
-              <Users size={13} /> {course.applied.toLocaleString()} applied
+          {course.session && (
+            <span className="inline-flex items-center gap-1">
+              <CalendarDays size={13} /> {course.session}
             </span>
-            <span className="font-semibold text-[#0F172A]">{course.seatsLeft} seats left</span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-[#F1F5F9] overflow-hidden">
-            <div
-              className={classNames(
-                "h-full rounded-full transition-all duration-500",
-                seatsPct <= 20 ? "bg-[#DC2626]" : "bg-[#FF6B3D]"
-              )}
-              style={{ width: `${100 - seatsPct}%` }}
-            />
-          </div>
+          )}
+          {typeof course.admissionCapacity === "number" && (
+            <span className="inline-flex items-center gap-1">
+              <Users size={13} /> {course.admissionCapacity} seats capacity
+            </span>
+          )}
         </div>
+
+        {requiredDocs.length > 0 && (
+          <div className="mt-2 flex items-center gap-1.5 text-[12px] text-[#64748B]">
+            <FileText size={13} /> {requiredDocs.length} document{requiredDocs.length !== 1 ? "s" : ""} required
+          </div>
+        )}
+
+        {course.createdAt && (
+          <div className="mt-1 text-[11.5px] text-[#94A3B8]">Added {formatDate(course.createdAt)}</div>
+        )}
 
         {/* CTAs */}
         <div className="mt-5 flex items-center gap-2.5">
           <button
-            className="flex-1 relative overflow-hidden rounded-full bg-[#FF6B3D] text-white text-[13px] font-semibold py-2.5
-                       transition-all duration-[250ms] ease-out hover:bg-[#F55A2A] hover:shadow-[0_8px_20px_-6px_rgba(255,107,61,0.55)]
-                       active:scale-[0.97]"
+            disabled={!course.isActive}
+            className={classNames(
+              "flex-1 relative overflow-hidden rounded-full text-[13px] font-semibold py-2.5 transition-all duration-[250ms] ease-out active:scale-[0.97]",
+              course.isActive
+                ? "bg-[#FF6B3D] text-white hover:bg-[#F55A2A] hover:shadow-[0_8px_20px_-6px_rgba(255,107,61,0.55)]"
+                : "bg-[#F1F5F9] text-[#94A3B8] cursor-not-allowed"
+            )}
           >
-            Apply Now
+            {course.isActive ? "Apply Now" : "Applications Closed"}
           </button>
           <Link
             to={`/student/courses/${course.id}`}
@@ -382,61 +296,6 @@ function CourseCard({ course, index = 0 }) {
         </div>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------- Carousel row ---------------------------- */
-function CarouselRow({ title, subtitle, icon: Icon, courses }) {
-  const scrollerRef = useRef(null);
-
-  const scrollBy = (dir) => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * (el.clientWidth * 0.9), behavior: "smooth" });
-  };
-
-  if (!courses.length) return null;
-
-  return (
-    <section className="mt-14">
-      <div className="flex items-end justify-between mb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            {Icon && (
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[#FFF1EB] text-[#FF6B3D]">
-                <Icon size={16} />
-              </span>
-            )}
-            <h2 className="text-xl font-bold text-[#0F172A]">{title}</h2>
-          </div>
-          {subtitle && <p className="mt-1 text-sm text-[#64748B]">{subtitle}</p>}
-        </div>
-        <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => scrollBy(-1)}
-            className="w-9 h-9 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#0F172A] transition-all duration-200"
-            aria-label="Scroll left"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={() => scrollBy(1)}
-            className="w-9 h-9 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#0F172A] hover:bg-[#F8FAFC] hover:border-[#0F172A] transition-all duration-200"
-            aria-label="Scroll right"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      <div ref={scrollerRef} className="ss-scroll-row flex gap-5 overflow-x-auto pb-2 -mx-1 px-1">
-        {courses.map((course, i) => (
-          <div key={course.id} className="min-w-[280px] max-w-[280px] sm:min-w-[300px] sm:max-w-[300px]">
-            <CourseCard course={course} index={i} />
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -466,11 +325,11 @@ function PillSelect({ label, value, onChange, options }) {
   );
 }
 
-function FilterBar({ filters, setFilters, resultCount, onClear }) {
+const SORTS = ["Newest", "Oldest", "Name (A–Z)"];
+
+function FilterBar({ filters, setFilters, resultCount, onClear, institutionOptions, sessionOptions }) {
   const update = (key) => (val) => setFilters((f) => ({ ...f, [key]: val }));
-  const hasActiveFilters =
-    filters.search || filters.category || filters.institution || filters.duration ||
-    filters.level || filters.mode || filters.sort;
+  const hasActiveFilters = filters.search || filters.institution || filters.session || filters.sort;
 
   return (
     <div className="sticky top-0 z-30 -mx-8 px-8 py-4 bg-white/90 backdrop-blur-md border-b border-[#E5E7EB]">
@@ -482,22 +341,14 @@ function FilterBar({ filters, setFilters, resultCount, onClear }) {
             <input
               value={filters.search}
               onChange={(e) => update("search")(e.target.value)}
-              placeholder="Search courses, institutions, skills..."
+              placeholder="Search courses, institutions..."
               className="w-full pl-10 pr-4 py-2.5 rounded-full border border-[#E5E7EB] bg-white text-[13px]
                          focus:outline-none focus:ring-2 focus:ring-[#FF6B3D]/25 focus:border-[#FF6B3D] transition-all duration-200"
             />
           </div>
 
-          <PillSelect label="Category" value={filters.category} onChange={update("category")} options={CATEGORIES} />
-          <PillSelect
-            label="Institution"
-            value={filters.institution}
-            onChange={update("institution")}
-            options={INSTITUTIONS.map((i) => i.name)}
-          />
-          <PillSelect label="Duration" value={filters.duration} onChange={update("duration")} options={DURATIONS} />
-          <PillSelect label="Level" value={filters.level} onChange={update("level")} options={LEVELS} />
-          <PillSelect label="Mode" value={filters.mode} onChange={update("mode")} options={MODES} />
+          <PillSelect label="Institution" value={filters.institution} onChange={update("institution")} options={institutionOptions} />
+          <PillSelect label="Session" value={filters.session} onChange={update("session")} options={sessionOptions} />
           <PillSelect label="Sort By" value={filters.sort} onChange={update("sort")} options={SORTS} />
 
           {hasActiveFilters && (
@@ -519,25 +370,24 @@ function FilterBar({ filters, setFilters, resultCount, onClear }) {
 }
 
 /* --------------------------------- Hero ---------------------------------- */
-function Hero({ search, setSearch }) {
+function Hero({ search, setSearch, institutionCount }) {
   return (
     <section
       className="ss-fade-in relative overflow-hidden rounded-3xl border border-[#E5E7EB] p-10 md:p-14"
       style={{
-        background:
-          "radial-gradient(120% 120% at 100% 0%, #FFF1EB 0%, #F8FAFC 45%, #FFFFFF 100%)",
+        background: "radial-gradient(120% 120% at 100% 0%, #FFF1EB 0%, #F8FAFC 45%, #FFFFFF 100%)",
       }}
     >
       <div className="relative z-10 grid md:grid-cols-[1.3fr_1fr] gap-10 items-center">
         <div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-semibold text-[#FF6B3D] shadow-sm">
-            <Sparkles size={13} /> 500+ verified institutions
+            <Sparkles size={13} /> {institutionCount > 0 ? `${institutionCount}+ verified institutions` : "Verified institutions"}
           </span>
           <h1 className="mt-5 text-4xl md:text-[44px] font-extrabold text-[#0F172A] leading-[1.1] tracking-tight">
             Discover Your Next Course
           </h1>
           <p className="mt-4 text-base md:text-lg text-[#64748B] max-w-lg leading-relaxed">
-            Explore industry-ready courses from leading institutions and apply directly.
+            Explore courses from leading institutions and apply directly.
           </p>
 
           <div className="mt-8 relative max-w-xl">
@@ -545,7 +395,7 @@ function Hero({ search, setSearch }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Try 'Machine Learning' or 'MIT'"
+              placeholder="Search by course or institution name"
               className="w-full pl-12 pr-32 py-4 rounded-full border border-[#E5E7EB] bg-white shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]
                          text-[14px] focus:outline-none focus:ring-2 focus:ring-[#FF6B3D]/25 focus:border-[#FF6B3D] transition-all duration-200"
             />
@@ -553,11 +403,6 @@ function Hero({ search, setSearch }) {
                                 hover:bg-[#F55A2A] transition-all duration-[250ms] active:scale-[0.97]">
               Search
             </button>
-          </div>
-
-          <div className="mt-6 flex items-center gap-6 text-[13px] text-[#64748B]">
-            <span className="inline-flex items-center gap-1.5"><Users size={14} className="text-[#FF6B3D]" /> 2.1M students applied</span>
-            <span className="inline-flex items-center gap-1.5"><Star size={14} className="text-[#FF6B3D]" fill="#FF6B3D" /> 4.8 avg. rating</span>
           </div>
         </div>
 
@@ -608,51 +453,106 @@ function EmptyState({ onReset }) {
   );
 }
 
+/* --------------------------------- Error state ------------------------------ */
+function ErrorState({ message, onRetry }) {
+  return (
+    <div className="ss-fade-in flex flex-col items-center text-center py-20">
+      <div className="w-14 h-14 rounded-full bg-[#FEF2F2] flex items-center justify-center">
+        <AlertTriangle size={22} className="text-[#DC2626]" />
+      </div>
+      <h3 className="mt-5 text-lg font-bold text-[#0F172A]">Couldn't load courses</h3>
+      <p className="mt-1.5 text-sm text-[#64748B] max-w-sm">
+        {message || "Something went wrong while fetching courses. Please try again."}
+      </p>
+      <button
+        onClick={onRetry}
+        className="mt-6 inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#FF6B3D] text-white text-[13px] font-semibold hover:bg-[#F55A2A] transition-all duration-[250ms] active:scale-[0.97]"
+      >
+        <RefreshCw size={14} /> Try Again
+      </button>
+    </div>
+  );
+}
+
 /* --------------------------------- Page ----------------------------------- */
 const emptyFilters = {
   search: "",
-  category: "",
   institution: "",
-  duration: "",
-  level: "",
-  mode: "",
+  session: "",
   sort: "",
 };
 
 export default function BrowseCourses() {
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState(emptyFilters);
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 900);
-    return () => clearTimeout(t);
+  const fetchCourses = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // ASSUMPTION: adjust this path if your actual course-listing route
+      // differs (no routes file was provided for this task).
+      const res = await api.get("/courses");
+      const payload = res?.data?.data ?? res?.data;
+
+      if (!Array.isArray(payload)) {
+        throw new Error("Malformed courses response");
+      }
+
+      // Normalize Mongo's _id -> id for React keys/links, keep every other
+      // field exactly as returned (no fabricated fields added).
+      const normalized = payload.map((c) => ({ ...c, id: c.id || c._id }));
+      setCourses(normalized);
+    } catch (err) {
+      console.error("Courses fetch failed:", err);
+      setError(
+        err?.response?.data?.message ||
+          "We couldn't load courses right now. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  // Filter option lists built from real data actually returned by the API.
+  const institutionOptions = useMemo(() => {
+    const names = new Set(courses.map((c) => institutionOf(c).name).filter(Boolean));
+    return Array.from(names).sort();
+  }, [courses]);
+
+  const sessionOptions = useMemo(() => {
+    const sessions = new Set(courses.map((c) => c.session).filter(Boolean));
+    return Array.from(sessions).sort();
+  }, [courses]);
+
+  const institutionCount = institutionOptions.length;
+
   const filtered = useMemo(() => {
-    let list = ALL_COURSES.filter((c) => {
+    let list = courses.filter((c) => {
       const q = filters.search.trim().toLowerCase();
-      if (q && !`${c.title} ${c.institution.name} ${c.category}`.toLowerCase().includes(q)) return false;
-      if (filters.category && c.category !== filters.category) return false;
-      if (filters.institution && c.institution.name !== filters.institution) return false;
-      if (filters.duration && c.duration !== filters.duration) return false;
-      if (filters.level && c.level !== filters.level) return false;
-      if (filters.mode && c.mode !== filters.mode) return false;
+      const institutionName = institutionOf(c).name;
+      if (q && !`${c.name} ${c.description || ""} ${institutionName}`.toLowerCase().includes(q)) return false;
+      if (filters.institution && institutionName !== filters.institution) return false;
+      if (filters.session && c.session !== filters.session) return false;
       return true;
     });
 
-    if (filters.sort === "Newest") list = [...list].sort((a, b) => b.id - a.id);
-    if (filters.sort === "Highest Rated") list = [...list].sort((a, b) => b.rating - a.rating);
-    if (filters.sort === "Closing Soon") list = [...list].sort((a, b) => (b.closingSoon ? 1 : 0) - (a.closingSoon ? 1 : 0));
-    if (filters.sort === "Most Applied") list = [...list].sort((a, b) => b.applied - a.applied);
+    if (filters.sort === "Newest") {
+      list = [...list].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    } else if (filters.sort === "Oldest") {
+      list = [...list].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+    } else if (filters.sort === "Name (A–Z)") {
+      list = [...list].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    }
 
     return list;
-  }, [filters]);
-
-  const featured = useMemo(() => filtered.filter((c) => c.featured), [filtered]);
-  const popular = useMemo(() => filtered.filter((c) => c.popular), [filtered]);
-  const fresh = useMemo(() => filtered.filter((c) => c.isNew), [filtered]);
-  const recommended = useMemo(() => filtered.filter((c) => c.recommended), [filtered]);
-  const recent = useMemo(() => filtered.filter((c) => c.recent), [filtered]);
+  }, [courses, filters]);
 
   const clearFilters = () => setFilters(emptyFilters);
 
@@ -666,57 +566,63 @@ export default function BrowseCourses() {
 
         <main className="flex-1 px-8 py-10 bg-[#FFFFFF]">
           {/* Hero */}
-          {loading ? <HeroSkeleton /> : <Hero search={filters.search} setSearch={(v) => setFilters((f) => ({ ...f, search: v }))} />}
-
-          {/* Sticky filter bar */}
-          <div className="mt-8">
-            {loading ? (
-              <FilterBarSkeleton />
-            ) : (
-              <FilterBar filters={filters} setFilters={setFilters} resultCount={filtered.length} onClear={clearFilters} />
-            )}
-          </div>
-
           {loading ? (
-            <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <CourseCardSkeleton key={i} />
-              ))}
+            <HeroSkeleton />
+          ) : (
+            <Hero
+              search={filters.search}
+              setSearch={(v) => setFilters((f) => ({ ...f, search: v }))}
+              institutionCount={institutionCount}
+            />
+          )}
+
+          {error ? (
+            <div className="mt-10">
+              <ErrorState message={error} onRetry={fetchCourses} />
             </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState onReset={clearFilters} />
           ) : (
             <>
-              {/* Featured — horizontal carousel */}
-              <CarouselRow
-                title="Featured Courses"
-                subtitle="Hand-picked programs with strong placement outcomes"
-                icon={Sparkles}
-                courses={featured.length ? featured : filtered.slice(0, 6)}
-              />
+              {/* Sticky filter bar */}
+              <div className="mt-8">
+                {loading ? (
+                  <FilterBarSkeleton />
+                ) : (
+                  <FilterBar
+                    filters={filters}
+                    setFilters={setFilters}
+                    resultCount={filtered.length}
+                    onClear={clearFilters}
+                    institutionOptions={institutionOptions}
+                    sessionOptions={sessionOptions}
+                  />
+                )}
+              </div>
 
-              {/* Main responsive grid */}
-              <section className="mt-14">
-                <div className="flex items-end justify-between mb-5">
-                  <div>
-                    <h2 className="text-xl font-bold text-[#0F172A]">All Courses</h2>
-                    <p className="mt-1 text-sm text-[#64748B]">
-                      {filtered.length} course{filtered.length !== 1 ? "s" : ""} currently open for applications
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filtered.map((course, i) => (
-                    <CourseCard key={course.id} course={course} index={i} />
+              {loading ? (
+                <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <CourseCardSkeleton key={i} />
                   ))}
                 </div>
-              </section>
-
-              {/* Additional carousels */}
-              <CarouselRow title="Popular Courses" subtitle="Most applied-to this month" icon={Flame} courses={popular} />
-              <CarouselRow title="New Courses" subtitle="Freshly opened for applications" icon={TrendingUp} courses={fresh} />
-              <CarouselRow title="Recommended For You" subtitle="Based on your interests and activity" icon={ThumbsUp} courses={recommended} />
-              <CarouselRow title="Recently Added" subtitle="Newest listings from partner institutions" icon={Clock3} courses={recent} />
+              ) : filtered.length === 0 ? (
+                <EmptyState onReset={clearFilters} />
+              ) : (
+                <section className="mt-14">
+                  <div className="flex items-end justify-between mb-5">
+                    <div>
+                      <h2 className="text-xl font-bold text-[#0F172A]">All Courses</h2>
+                      <p className="mt-1 text-sm text-[#64748B]">
+                        {filtered.length} course{filtered.length !== 1 ? "s" : ""} found
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {filtered.map((course, i) => (
+                      <CourseCard key={course.id} course={course} index={i} />
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
         </main>

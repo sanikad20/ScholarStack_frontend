@@ -1,5 +1,6 @@
 // src/pages/public/AdminLogin.jsx
 import { useState } from "react";
+import { useAuth } from "../../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -11,6 +12,7 @@ import api from "../../api/axios";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [activeTab, setActiveTab] = useState("instAdmin");
   const [showPassword, setShowPassword] = useState(false);
@@ -42,28 +44,9 @@ export default function AdminLogin() {
     setToast(null);
 
     try {
-      // For Super Admin, we need to set the Host header.
-      // The login function from auth.api.js uses the default axios instance.
-      // We need to pass an extra config with the Host header.
-      // Since our auth.api.js doesn't accept custom headers, we'll use raw axios or modify the function.
-      // For simplicity, we'll keep using raw axios with the custom header for now.
-      // But we can also extend the login function to accept a config parameter.
-      // I'll show a cleaner approach: use api directly with a conditional header.
-
-      // ✅ Use the api instance from axios.js (which we already have)
-      // We'll import api directly from the axios config file.
-      // For now, I'll show the approach using api from "../../api/axios".
-      // But we can refactor later to use auth.api.js if we add config support.
-
-      // ─── Import api from "../../api/axios" ──────────────────
-      // import api from "../../api/axios"; // (already imported)
-      // We'll keep the raw axios call but use the existing api instance.
-
       const config = {};
       if (activeTab === "superAdmin") {
-        config.headers = {
-          Host: "super.localhost",
-        };
+        config.headers = { Host: "super.localhost" };
       }
 
       const { data } = await api.post("/auth/login", {
@@ -73,11 +56,7 @@ export default function AdminLogin() {
 
       if (data?.token) {
         localStorage.setItem("token", data.token);
-      }
-
-      // Store user info (optional)
-      if (data?.user) {
-        localStorage.setItem("user", JSON.stringify(data.user));
+        login(data.user);
       }
 
       const role = data?.user?.role;
@@ -85,7 +64,7 @@ export default function AdminLogin() {
       if (role === "superAdmin") {
         navigate("/superadmin/dashboard");
       } else if (role === "instAdmin") {
-        navigate("/admin/dashboard"); // ✅ Redirect to admin dashboard (more logical)
+        navigate("/admin/dashboard"); 
       } else {
         navigate("/");
       }

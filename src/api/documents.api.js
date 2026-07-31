@@ -10,3 +10,4 @@ export const getDocumentById = (id) => api.get(`/documents/single/${id}`);
 // ADMIN ROUTES
 export const updateDocumentStatus = (id, data) => api.put(`/documents/${id}/status`, data);
 export const deleteDocument = (id) => api.delete(`/documents/${id}`);
+export const verifyDocument = (id) => api.post(`documents/verify/${id}`);

@@ -45,9 +45,21 @@ const STUDENT_STEPS = [
 ];
 
 const ADMIN_STEPS = [
-  { icon: Settings2, title: "Set Up", body: "Configure courses and admission forms." },
-  { icon: FileCheck, title: "Review", body: "Verify documents and applications." },
-  { icon: Sparkles, title: "Admit", body: "Admit students with one click." },
+  {
+    icon: Settings2,
+    title: "Set Up",
+    body: "Configure courses and admission forms.",
+  },
+  {
+    icon: FileCheck,
+    title: "Review",
+    body: "Verify documents and applications.",
+  },
+  {
+    icon: Sparkles,
+    title: "Admit",
+    body: "Admit students with one click.",
+  },
 ];
 
 // ─── Hero ────────────────────────────────────────────────
@@ -113,9 +125,11 @@ function Hero({ view }) {
   );
 }
 
-// ─── Stats Bar ────────────────────────────────────────────
 function StatsBar({ view, totalCount }) {
-  const stats = view === "student" ? STUDENT_STATS(totalCount) : ADMIN_STATS(totalCount);
+  const stats =
+    view === "student"
+      ? STUDENT_STATS(totalCount)
+      : ADMIN_STATS(totalCount);
   return (
     <section className="bg-[#FFF3EA] py-12">
       <div className={WRAP}>

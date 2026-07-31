@@ -1,10 +1,10 @@
 // src/components/admin/AdminTopbar.jsx
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { Bell, User, LogOut, CheckCircle, GraduationCap } from "lucide-react";
 import graduationCap from "../../assets/GraduationCap.png";
 
-// ✅ API imports
 import {
   getUnreadCount,
   getMyNotifications,
@@ -17,6 +17,8 @@ const DUMMY_USER = { name: "Aashu", email: "admin@vjti.edu.in", avatarInitial: "
 
 export default function AdminTopbar() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -89,8 +91,7 @@ export default function AdminTopbar() {
 
   // ─── Logout ───────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout();
     navigate("/admin-login");
   };
 

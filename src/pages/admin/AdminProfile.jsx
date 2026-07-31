@@ -1,6 +1,7 @@
 // src/pages/admin/Profile.jsx
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import { Edit, Save, X, User, Building, Mail, Phone, MapPin, Globe, Calendar, LogOut, Users, Plus } from "lucide-react";
 
 import AdminTopbar from "../../components/layout/AdminTopbar";
@@ -11,12 +12,6 @@ import Modal from "../../components/ui/Modal";
 
 import { getInstitutionById, updateInstitution } from "../../api/institutions.api";
 import { changePassword, getAdmins, addInstitutionAdmin } from "../../api/auth.api";
-
-// ─── Helpers ─────────────────────────────────────────────
-const getCurrentUser = () => {
-  const user = localStorage.getItem("user");
-  return user ? JSON.parse(user) : null;
-};
 
 // ─── Fallback Data ──────────────────────────────────────
 const FALLBACK_INSTITUTION = {
@@ -50,7 +45,9 @@ const FALLBACK_ADMINS = [
 // ─── Main Component ────────────────────────────────────
 export default function Profile() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(getCurrentUser());
+  // ✅ Use AuthContext for user, login, logout
+  const { user, login, logout } = useAuth();
+
   const [institution, setInstitution] = useState(null);
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -238,9 +235,11 @@ export default function Profile() {
         });
         setIsEditing(false);
         showToast("Institution updated successfully!", "success");
+
+        // ✅ Update AuthContext with new institution name
         const updatedUser = { ...user, institutionName: data.data.name };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-        setUser(updatedUser);
+        login(updatedUser);
+
       } else {
         showToast("Failed to update institution.", "error");
       }
@@ -308,8 +307,7 @@ export default function Profile() {
 
   // ─── Logout ──────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    logout(); // ✅ Clears context + localStorage
     navigate("/admin-login");
   };
 
