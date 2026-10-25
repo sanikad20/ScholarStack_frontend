@@ -1,8 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 
 // PUBLIC PAGES 
-import ForInstitutions from "./pages/public/forInstitutions.jsx";
-import RegisterInstitution from "./pages/public/RegisterInstitution.jsx";
 import Landing from "./pages/public/Landing.jsx";
 import Login from "./pages/public/Login.jsx";
 import Register from "./pages/public/Register.jsx";
@@ -62,9 +60,6 @@ export default function App() {
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/for-institutions" element={<ForInstitutions />} />
-      <Route path="/register-institution" element={<RegisterInstitution />} />
-      
 
       {/* STUDENT ROUTES */}
       <Route path="/student/dashboard" element={<Dashboard />} />
