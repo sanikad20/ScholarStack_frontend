@@ -259,6 +259,23 @@ export default function Login() {
 
             </div>
 
+            <div className="mt-5 rounded-xl border border-black-200 bg-yellow-50/60 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-navySoft"> Demo Account </h3>
+              </div>
+
+              <div className="space-y-2 rounded-lg bg-white border border-black-100 p-3">
+                <p className="text-sm text-navySoft">
+                  <span className="font-semibold">Email:</span>{" "}
+                    student0.vjti@test.scholarstack.com
+                </p>
+                <p className="text-sm text-navySoft">
+                  <span className="font-semibold">Password:</span>{" "}
+                    Test@123
+                </p>
+              </div>
+            </div>
+
             {/* Button */}
 
             <button

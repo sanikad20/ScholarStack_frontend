@@ -204,6 +204,23 @@ export default function AdminLogin() {
                 </Link>
               </div>
 
+              <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-sm font-bold text-navySoft"> Demo Account </h3>
+                </div>
+
+                <div className="space-y-2 rounded-lg bg-white border border-blue-100 p-3">
+                  <p className="text-sm text-navySoft">
+                    <span className="font-semibold">Email:</span>{" "}
+                      admin@vjti.edu.in / superadmin@scholarstack.com
+                  </p>
+                  <p className="text-sm text-navySoft">
+                    <span className="font-semibold">Password:</span>{" "}
+                      Test@123
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <button
                   type="submit"
@@ -220,7 +237,7 @@ export default function AdminLogin() {
             <div className="mt-8 text-sm text-navySoft text-center">
               Are you a student?{" "}
               <Link to="/login" className="font-semibold text-accent hover:underline">
-                Sign in to Student Console
+                Sign in as Student
               </Link>
             </div>
           </div>
